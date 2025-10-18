@@ -95,21 +95,25 @@ export function ProjectsPage() {
         )}
         <div className="grid gap-4 md:grid-cols-2">
           {data?.map((project) => (
-            <Card key={project.id} className="transition hover:border-primary/40">
-              <CardHeader className="space-y-1">
-                <CardTitle className="text-xl">
-                  <Link to={`/projects/${project.id}`} className="hover:underline">
+            <Link
+              key={project.id}
+              to={`/projects/${project.id}`}
+              className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-lg"
+            >
+              <Card className="transition hover:border-primary/60 group-focus-visible:border-primary/60">
+                <CardHeader className="space-y-1">
+                  <CardTitle className="text-xl group-hover:text-primary">
                     {project.name}
-                  </Link>
-                </CardTitle>
-                {project.description && (
-                  <CardDescription className="line-clamp-3">{project.description}</CardDescription>
-                )}
-              </CardHeader>
-              <CardContent className="text-xs text-muted-foreground">
-                Criado em {new Date(project.createdAt).toLocaleDateString()}
-              </CardContent>
-            </Card>
+                  </CardTitle>
+                  {project.description && (
+                    <CardDescription className="line-clamp-3">{project.description}</CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent className="text-xs text-muted-foreground">
+                  Criado em {new Date(project.createdAt).toLocaleDateString()}
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       </section>
