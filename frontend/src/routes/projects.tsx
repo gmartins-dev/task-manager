@@ -30,7 +30,7 @@ export function ProjectsPage() {
 
   const createProject = useMutation({
     mutationFn: async () => {
-      if (!name.trim()) throw new Error('Project name is required');
+      if (!name.trim()) throw new Error('O nome do projeto e obrigatorio');
       return api('/projects', {
         method: 'POST',
         credentials: 'include',
@@ -44,7 +44,7 @@ export function ProjectsPage() {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
     onError: (error: unknown) => {
-      setFormError(error instanceof Error ? error.message : 'Unable to create project');
+      setFormError(error instanceof Error ? error.message : 'Nao foi possivel criar o projeto');
     },
   });
 
@@ -52,17 +52,17 @@ export function ProjectsPage() {
     <div className="space-y-8">
       <Card>
         <CardHeader>
-          <CardTitle>New project</CardTitle>
-          <CardDescription>Create a workspace to group tasks by initiative or team.</CardDescription>
+          <CardTitle>Novo projeto</CardTitle>
+          <CardDescription>Crie um espaco para agrupar tarefas por iniciativa ou equipe.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Input
-            placeholder="Project name"
+            placeholder="Nome do projeto"
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
           <Textarea
-            placeholder="Short description (optional)"
+            placeholder="Descricao breve (opcional)"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
@@ -72,24 +72,24 @@ export function ProjectsPage() {
             disabled={createProject.isPending}
             className="w-full sm:w-auto"
           >
-            {createProject.isPending ? 'Creating…' : 'Create project'}
+            {createProject.isPending ? 'Criando...' : 'Criar projeto'}
           </Button>
         </CardContent>
       </Card>
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Projects</h2>
-          <span className="text-sm text-muted-foreground">{data?.length ?? 0} total</span>
+          <h2 className="text-lg font-semibold">Projetos</h2>
+          <span className="text-sm text-muted-foreground">{data?.length ?? 0} no total</span>
         </div>
-        {isLoading && <p className="text-sm text-muted-foreground">Loading projects…</p>}
+        {isLoading && <p className="text-sm text-muted-foreground">Carregando projetos...</p>}
         {isError && (
-          <p className="text-sm text-destructive">We couldn&apos;t load your projects. Please retry shortly.</p>
+          <p className="text-sm text-destructive">Nao foi possivel carregar seus projetos. Tente novamente em instantes.</p>
         )}
         {!isLoading && !isError && (!data || data.length === 0) && (
           <Card>
             <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              You don&apos;t have any projects yet. Create one above to get started.
+              Voce ainda nao tem projetos. Crie o primeiro usando o formulario acima.
             </CardContent>
           </Card>
         )}
@@ -107,7 +107,7 @@ export function ProjectsPage() {
                 )}
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground">
-                Created {new Date(project.createdAt).toLocaleDateString()}
+                Criado em {new Date(project.createdAt).toLocaleDateString()}
               </CardContent>
             </Card>
           ))}

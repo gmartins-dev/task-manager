@@ -9,7 +9,7 @@ export const validate = (schema: ZodSchema<any>) =>
       query: req.query,
     });
     if (!result.success) {
-      return res.status(400).json({ error: { message: 'Validation failed', details: result.error.flatten() } });
+      return res.status(400).json({ error: { message: 'Falha na validacao dos dados', details: result.error.flatten() } });
     }
     // Replace with parsed values to ensure types
     const { body, params, query } = result.data as any;

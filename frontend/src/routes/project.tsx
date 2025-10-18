@@ -28,11 +28,11 @@ const STATUS_OPTIONS: Task['status'][] = ['PENDING', 'IN_PROGRESS', 'COMPLETED']
 const statusLabel = (status: Task['status']) => {
   switch (status) {
     case 'PENDING':
-      return 'Pending';
+      return 'Pendente';
     case 'IN_PROGRESS':
-      return 'In progress';
+      return 'Em andamento';
     case 'COMPLETED':
-      return 'Completed';
+      return 'Concluida';
     default:
       return status;
   }
@@ -83,7 +83,7 @@ export function ProjectPage() {
 
   const createTask = useMutation({
     mutationFn: async () => {
-      if (!title.trim()) throw new Error('Task title is required');
+      if (!title.trim()) throw new Error('O titulo da tarefa e obrigatorio');
       return api(`/projects/${id}/tasks`, {
         method: 'POST',
         credentials: 'include',
@@ -104,7 +104,7 @@ export function ProjectPage() {
       queryClient.invalidateQueries({ queryKey: ['project', id, 'tasks'] });
     },
     onError: (error: unknown) => {
-      setFormError(error instanceof Error ? error.message : 'Unable to create task');
+      setFormError(error instanceof Error ? error.message : 'Nao foi possivel criar a tarefa');
     },
   });
 
@@ -134,10 +134,10 @@ export function ProjectPage() {
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
 
   if (projectQuery.isLoading || tasksQuery.isLoading) {
-    return <p className="text-sm text-muted-foreground">Loading project…</p>;
+    return <p className="text-sm text-muted-foreground">Carregando projeto...</p>;
   }
   if (!projectQuery.data) {
-    return <p className="text-sm text-destructive">Project not found.</p>;
+    return <p className="text-sm text-destructive">Projeto nao encontrado.</p>;
   }
 
   return (
@@ -151,24 +151,24 @@ export function ProjectPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Create a task</CardTitle>
-          <CardDescription>Add work items to track progress within this project.</CardDescription>
+          <CardTitle>Criar tarefa</CardTitle>
+          <CardDescription>Adicione atividades para acompanhar o progresso deste projeto.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
           <div className="md:col-span-2 space-y-2">
             <Input
-              placeholder="Task title"
+              placeholder="Titulo da tarefa"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
             />
           </div>
           <Textarea
-            placeholder="Description (optional)"
+            placeholder="Descricao (opcional)"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
           <div className="space-y-2">
-            <label className="text-sm font-medium">Due date</label>
+            <label className="text-sm font-medium">Data de entrega</label>
             <Input
               type="date"
               value={dueDate}
@@ -193,7 +193,7 @@ export function ProjectPage() {
           {formError && <p className="text-sm text-destructive md:col-span-2">{formError}</p>}
           <div className="md:col-span-2">
             <Button onClick={() => createTask.mutate()} disabled={createTask.isPending}>
-              {createTask.isPending ? 'Adding task...' : 'Add task'}
+              {createTask.isPending ? 'Adicionando tarefa...' : 'Adicionar tarefa'}
             </Button>
           </div>
         </CardContent>
@@ -202,7 +202,7 @@ export function ProjectPage() {
       <Card>
         <CardHeader className="space-y-4">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <CardTitle>Tasks</CardTitle>
+            <CardTitle>Tarefas</CardTitle>
             <div className="flex flex-wrap gap-3">
               <Select
                 value={filters.status}
@@ -210,11 +210,11 @@ export function ProjectPage() {
                   setFilters((prev) => ({ ...prev, status: value as Task['status'] | 'all' }))
                 }
               >
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Filter by status" />
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Filtrar por status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="all">Todos os status</SelectItem>
                   {STATUS_OPTIONS.map((option) => (
                     <SelectItem key={option} value={option}>
                       {statusLabel(option)}
@@ -229,25 +229,25 @@ export function ProjectPage() {
                 }
               >
                 <SelectTrigger className="w-44">
-                  <SelectValue placeholder="Sort by due date" />
+                  <SelectValue placeholder="Ordenar por data de entrega" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="dueDateAsc">Due soonest</SelectItem>
-                  <SelectItem value="dueDateDesc">Due latest</SelectItem>
+                  <SelectItem value="dueDateAsc">Mais proximas</SelectItem>
+                  <SelectItem value="dueDateDesc">Mais distantes</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <CardDescription>
-            Filter tasks by status and reorder them by due date to spot upcoming work.
+            Filtre as tarefas por status e reordene pela data de entrega para priorizar o trabalho.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {tasksQuery.isError && (
-            <p className="text-sm text-destructive">Unable to load tasks. Please try again later.</p>
+            <p className="text-sm text-destructive">Nao foi possivel carregar as tarefas. Tente novamente mais tarde.</p>
           )}
           {!tasksQuery.isError && tasks.length === 0 && (
-            <p className="text-sm text-muted-foreground">No tasks yet. Create your first task above.</p>
+            <p className="text-sm text-muted-foreground">Ainda nao ha tarefas. Crie a primeira usando o formulario acima.</p>
           )}
           <div className="space-y-3">
             {tasks.map((task) => (
@@ -264,7 +264,7 @@ export function ProjectPage() {
                     <p className="text-sm text-muted-foreground">{task.description}</p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Due {new Date(task.dueDate).toLocaleDateString()}
+                    Entrega em {new Date(task.dueDate).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 md:items-end">
@@ -275,7 +275,7 @@ export function ProjectPage() {
                     }
                   >
                     <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Update status" />
+                      <SelectValue placeholder="Atualizar status" />
                     </SelectTrigger>
                     <SelectContent>
                       {STATUS_OPTIONS.map((option) => (
@@ -291,7 +291,7 @@ export function ProjectPage() {
                     className="text-destructive hover:text-destructive"
                     onClick={() => deleteTask.mutate(task.id)}
                   >
-                    Remove
+                    Remover
                   </Button>
                 </div>
               </div>

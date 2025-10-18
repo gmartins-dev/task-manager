@@ -40,6 +40,6 @@ export async function api(path: string, options: ApiOptions = {}) {
   }
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error?.message ?? 'Request failed');
+  if (!res.ok) throw new Error(data?.error?.message ?? 'Falha na requisicao');
   return data;
 }

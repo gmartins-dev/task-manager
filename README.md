@@ -1,27 +1,27 @@
-Task Manager Monorepo
+Gerenciador de Tarefas Monorepo
 
 Scripts
-- Root:
-  - `pnpm -r install` — install all workspace deps
-  - `pnpm dev` (alias of `pnpm run dev:stack`) — boot MySQL (Docker), backend (4000) and frontend (5173)
-  - `pnpm run dev:down` — stop the MySQL container
-  - Backend only: `pnpm --filter backend dev`
-  - Frontend only: `pnpm --filter frontend dev`
-  - Run tests: `pnpm --filter backend test`, `pnpm --filter frontend test -- --run`
+- Raiz:
+  - `pnpm -r install` - instala todas as dependencias do workspace
+  - `pnpm dev` (atalho para `pnpm run dev:stack`) - sobe MySQL (Docker), backend (4000) e frontend (5173)
+  - `pnpm run dev:down` - encerra o container do MySQL
+  - Backend: `pnpm --filter backend dev`
+  - Frontend: `pnpm --filter frontend dev`
+  - Testes: `pnpm --filter backend test`, `pnpm --filter frontend test -- --run`
 
-Environment
-- Start MySQL with `docker compose up -d`
-- In `backend/` copy `.env.example` → `.env` and configure:
-  - `DATABASE_URL` for the main DB
-  - `SHADOW_DATABASE_URL` (root user) so Prisma Migrate can create a shadow database
+Ambiente
+- Inicie o MySQL com `docker compose up -d`
+- Em `backend/` copie `.env.example` para `.env` e configure:
+  - `DATABASE_URL` (banco principal)
+  - `SHADOW_DATABASE_URL` (usuario root) para permitir o shadow database do Prisma Migrate
   - `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN`
-- In `frontend/` copy `.env.example` → `.env` and set `VITE_API_URL` (defaults to `http://localhost:4000`)
-- Run database setup:
-  - `pnpm --filter backend prisma migrate dev` (creates migrations & syncs schema)
-  - `pnpm --filter backend prisma generate` (if you need to regenerate the client)
+- Em `frontend/` copie `.env.example` para `.env` e ajuste `VITE_API_URL` (padrao `http://localhost:4000`)
+- Execute a preparacao do banco:
+  - `pnpm --filter backend prisma migrate dev`
+  - `pnpm --filter backend prisma generate` (se precisar regerar o client)
 
-Implementation Highlights
-- Backend: Express (TS), Prisma (MySQL) with task status enum, due date support, filtering and sorting APIs, JWT auth with rotating refresh tokens, Zod validation, Jest + Supertest coverage for critical flows.
-- Frontend: Vite + React (TS), Tailwind + shadcn/ui components, Zustand auth store with token persistence, React Query for data fetching, forms built with React Hook Form + Zod, Vitest + Testing Library.
-- Features: projects CRUD, task CRUD with status management, due date sorting, status filters, responsive UI, guarded routes with automatic token refresh.
-- See `REQUIREMENTS.md` and `task-guide*.md` for detailed specification and remaining backlog ideas.
+Destaques da Implementacao
+- Backend: Express (TypeScript), Prisma (MySQL) com enum de status, data limite obrigatoria, filtros e ordenacao, autenticacao JWT com refresh rotativo, validacao Zod, testes Jest + Supertest.
+- Frontend: Vite + React (TypeScript), Tailwind + componentes shadcn/ui, autenticacao com Zustand persistida, React Query para dados, formularios com React Hook Form + Zod, Vitest + Testing Library.
+- Funcionalidades: CRUD de projetos, CRUD de tarefas com status, filtro por status, ordenacao por data de entrega, UI responsiva e rotas protegidas com refresh automatico.
+- Consulte `REQUIREMENTS.md` e `task-guide*.md` para detalhes completos e proximos passos sugeridos.

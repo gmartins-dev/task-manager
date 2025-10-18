@@ -43,12 +43,12 @@ const prismaMock = prisma as unknown as {
 const app = createApp();
 const token = `Bearer ${createAccessToken({ id: 'user-1', email: 'user@test.dev' })}`;
 
-describe('Projects router task endpoints', () => {
+describe('Endpoints de tarefas do router de projetos', () => {
   beforeEach(() => {
     jest.resetAllMocks();
   });
 
-  it('applies status filter and due date sorting when listing tasks', async () => {
+  it('aplica filtro de status e ordenacao por data ao listar tarefas', async () => {
     prismaMock.project.findFirst.mockResolvedValue({
       id: 'project-1',
       ownerId: 'user-1',
@@ -67,7 +67,7 @@ describe('Projects router task endpoints', () => {
     });
   });
 
-  it('rejects assigning a task to a different user', async () => {
+  it('rejeita atribuir tarefa para outro usuario', async () => {
     prismaMock.project.findFirst.mockResolvedValue({
       id: 'project-1',
       ownerId: 'user-1',

@@ -10,8 +10,8 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 
 const schema = z.object({
-  email: z.string().email('Enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  email: z.string().email('Informe um e-mail valido'),
+  password: z.string().min(8, 'A senha deve ter pelo menos 8 caracteres'),
 });
 type Form = z.infer<typeof schema>;
 
@@ -31,7 +31,7 @@ export function LoginPage() {
       await login(values.email, values.password);
       navigate('/projects');
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Unable to login');
+      setSubmitError(err instanceof Error ? err.message : 'Nao foi possivel entrar');
     }
   };
 
@@ -39,18 +39,18 @@ export function LoginPage() {
     <div className="mx-auto w-full max-w-md py-12">
       <Card>
         <CardHeader className="space-y-2">
-          <CardTitle>Welcome back</CardTitle>
-          <CardDescription>Sign in to manage your projects and tasks.</CardDescription>
+          <CardTitle>Bem-vindo de volta</CardTitle>
+          <CardDescription>Entre para gerenciar seus projetos e tarefas.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">E-mail</Label>
               <Input id="email" type="email" autoComplete="email" {...register('email')} />
               {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Senha</Label>
               <Input id="password" type="password" autoComplete="current-password" {...register('password')} />
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password.message}</p>
@@ -58,13 +58,13 @@ export function LoginPage() {
             </div>
             {submitError && <p className="text-sm text-destructive">{submitError}</p>}
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Signing in…' : 'Login'}
+              {isSubmitting ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
           <p className="mt-6 text-sm text-muted-foreground">
-            No account?{' '}
+            Nao tem uma conta?{' '}
             <Link to="/register" className="font-medium text-primary hover:underline">
-              Create one
+              Crie agora
             </Link>
           </p>
         </CardContent>

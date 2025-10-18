@@ -46,7 +46,7 @@ projectsRouter.get('/:id', validate(ProjectIdSchema), async (req, res, next) => 
       where: { id, ownerId: req.user!.id },
       include: { tasks: true },
     });
-    if (!project) return res.status(404).json({ error: { message: 'Project not found' } });
+    if (!project) return res.status(404).json({ error: { message: 'Projeto nao encontrado' } });
     res.json({ project });
   } catch (err) { next(err); }
 });
@@ -57,7 +57,7 @@ projectsRouter.patch('/:id', validate(ProjectUpdateSchema), async (req, res, nex
     const { id } = req.params as any;
     const { name, description } = req.body as any;
     const existing = await prisma.project.findFirst({ where: { id, ownerId: req.user!.id } });
-    if (!existing) return res.status(404).json({ error: { message: 'Project not found' } });
+    if (!existing) return res.status(404).json({ error: { message: 'Projeto nao encontrado' } });
     const project = await prisma.project.update({ where: { id }, data: { name, description } });
     res.json({ project });
   } catch (err) { next(err); }
@@ -68,7 +68,7 @@ projectsRouter.delete('/:id', validate(ProjectIdSchema), async (req, res, next) 
   try {
     const { id } = req.params as any;
     const existing = await prisma.project.findFirst({ where: { id, ownerId: req.user!.id } });
-    if (!existing) return res.status(404).json({ error: { message: 'Project not found' } });
+    if (!existing) return res.status(404).json({ error: { message: 'Projeto nao encontrado' } });
     await prisma.project.delete({ where: { id } });
     res.status(204).send();
   } catch (err) { next(err); }
@@ -80,7 +80,7 @@ projectsRouter.get('/:projectId/tasks', validate(ProjectTasksSchema), async (req
     const { projectId } = req.params as any;
     const { status, sort } = (req.query as any) ?? {};
     const project = await prisma.project.findFirst({ where: { id: projectId, ownerId: req.user!.id } });
-    if (!project) return res.status(404).json({ error: { message: 'Project not found' } });
+    if (!project) return res.status(404).json({ error: { message: 'Projeto nao encontrado' } });
     const orderBy =
       sort === 'dueDateAsc'
         ? { dueDate: 'asc' as const }
@@ -102,9 +102,9 @@ projectsRouter.post('/:projectId/tasks', validate(TaskCreateSchema), async (req,
     const { projectId } = req.params as any;
     const { title, description, dueDate, status, assigneeId } = req.body as any;
     const project = await prisma.project.findFirst({ where: { id: projectId, ownerId: req.user!.id } });
-    if (!project) return res.status(404).json({ error: { message: 'Project not found' } });
+    if (!project) return res.status(404).json({ error: { message: 'Projeto nao encontrado' } });
     if (assigneeId && assigneeId !== req.user!.id) {
-      return res.status(400).json({ error: { message: 'Invalid assignee for this project' } });
+      return res.status(400).json({ error: { message: 'Responsavel invalido para este projeto' } });
     }
     const task = await prisma.task.create({ data: {
       title,
@@ -125,11 +125,11 @@ projectsRouter.patch('/tasks/:id', validate(TaskUpdateSchema), async (req, res, 
     // Ensure ownership via project
     const task = await prisma.task.findUnique({ where: { id }, include: { project: true } });
     if (!task || task.project.ownerId !== req.user!.id) {
-      return res.status(404).json({ error: { message: 'Task not found' } });
+      return res.status(404).json({ error: { message: 'Tarefa nao encontrada' } });
     }
     const { title, description, dueDate, status, assigneeId } = req.body as any;
     if (assigneeId && assigneeId !== req.user!.id) {
-      return res.status(400).json({ error: { message: 'Invalid assignee for this project' } });
+      return res.status(400).json({ error: { message: 'Responsavel invalido para este projeto' } });
     }
     const updated = await prisma.task.update({ where: { id }, data: {
       title,
@@ -148,7 +148,7 @@ projectsRouter.delete('/tasks/:id', validate(TaskIdSchema), async (req, res, nex
     const { id } = req.params as any;
     const task = await prisma.task.findUnique({ where: { id }, include: { project: true } });
     if (!task || task.project.ownerId !== req.user!.id) {
-      return res.status(404).json({ error: { message: 'Task not found' } });
+      return res.status(404).json({ error: { message: 'Tarefa nao encontrada' } });
     }
     await prisma.task.delete({ where: { id } });
     res.status(204).send();

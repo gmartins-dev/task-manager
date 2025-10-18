@@ -9,7 +9,7 @@ describe('LoginPage', () => {
         <LoginPage />
       </MemoryRouter>,
     );
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/e-mail/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/senha/i)).toBeInTheDocument();
   });
 });

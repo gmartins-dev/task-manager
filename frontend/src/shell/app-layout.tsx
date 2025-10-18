@@ -10,12 +10,12 @@ export function AppLayout() {
       <header className="border-b">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4">
           <Link to="/projects" className="text-lg font-semibold">
-            Task Manager
+            Gerenciador de Tarefas
           </Link>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            {user && <span className="hidden sm:inline">Hello, {user.name}</span>}
+            {user && <span className="hidden sm:inline">Ola, {user.name}</span>}
             <Button variant="outline" size="sm" onClick={logout}>
-              Logout
+              Sair
             </Button>
           </div>
         </div>
