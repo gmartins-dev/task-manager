@@ -5,8 +5,10 @@ import { validate } from '../../middlewares/validate';
 import {
   ProjectCreateSchema,
   ProjectIdSchema,
+  ProjectTasksSchema,
   ProjectUpdateSchema,
   TaskCreateSchema,
+  TaskIdSchema,
   TaskUpdateSchema,
 } from './schemas';
 
@@ -72,7 +74,7 @@ projectsRouter.delete('/:id', validate(ProjectIdSchema), async (req, res, next) 
 });
 
 // List tasks in project
-projectsRouter.get('/:projectId/tasks', async (req, res, next) => {
+projectsRouter.get('/:projectId/tasks', validate(ProjectTasksSchema), async (req, res, next) => {
   try {
     const { projectId } = req.params as any;
     const project = await prisma.project.findFirst({ where: { id: projectId, ownerId: req.user!.id } });
@@ -121,7 +123,7 @@ projectsRouter.patch('/tasks/:id', validate(TaskUpdateSchema), async (req, res, 
 });
 
 // Delete task
-projectsRouter.delete('/tasks/:id', async (req, res, next) => {
+projectsRouter.delete('/tasks/:id', validate(TaskIdSchema), async (req, res, next) => {
   try {
     const { id } = req.params as any;
     const task = await prisma.task.findUnique({ where: { id }, include: { project: true } });
@@ -132,4 +134,3 @@ projectsRouter.delete('/tasks/:id', async (req, res, next) => {
     res.status(204).send();
   } catch (err) { next(err); }
 });
-

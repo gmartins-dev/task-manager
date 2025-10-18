@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from './shell/app-layout';
 import { LoginPage } from './routes/login';
@@ -8,6 +9,16 @@ import { useAuthStore } from './stores/auth';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const token = useAuthStore((s) => s.accessToken);
+  const hydrated = useAuthStore((s) => s.hydrated);
+  const refresh = useAuthStore((s) => s.refresh);
+
+  useEffect(() => {
+    if (!hydrated) {
+      void refresh();
+    }
+  }, [hydrated, refresh]);
+
+  if (!hydrated) return <p>Loading session...</p>;
   if (!token) return <Navigate to="/login" replace />;
   return children;
 }
@@ -28,4 +39,3 @@ export const router = createBrowserRouter([
     ],
   },
 ]);
-

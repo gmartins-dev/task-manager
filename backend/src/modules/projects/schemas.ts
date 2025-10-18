@@ -42,3 +42,10 @@ export const TaskUpdateSchema = z.object({
   }),
 });
 
+export const TaskIdSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+});
+
+export const ProjectTasksSchema = z.object({
+  params: z.object({ projectId: z.string().min(1) }),
+});
