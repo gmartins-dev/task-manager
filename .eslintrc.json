@@ -1,0 +1,34 @@
+{
+  "root": true,
+  "env": { "es2022": true, "node": true, "browser": true, "jest": false },
+  "ignorePatterns": ["dist", "node_modules"],
+  "overrides": [
+    {
+      "files": ["backend/**/*.{ts,tsx}", "backend/**/*.cts", "backend/**/*.mts"],
+      "env": { "jest": true, "node": true },
+      "parser": "@typescript-eslint/parser",
+      "parserOptions": { "project": false },
+      "plugins": ["@typescript-eslint"],
+      "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended",
+        "prettier"
+      ]
+    },
+    {
+      "files": ["frontend/**/*.{ts,tsx}"],
+      "env": { "browser": true },
+      "parser": "@typescript-eslint/parser",
+      "parserOptions": { "project": false },
+      "plugins": ["react", "@typescript-eslint"],
+      "extends": [
+        "eslint:recommended",
+        "plugin:react/recommended",
+        "plugin:@typescript-eslint/recommended",
+        "prettier"
+      ],
+      "settings": { "react": { "version": "detect" } }
+    }
+  ]
+}
+

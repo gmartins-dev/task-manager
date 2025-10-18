@@ -1,0 +1,26 @@
+{
+  "name": "task-manager-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm run dev:stack",
+    "dev:stack": "pnpm run dev:db && pnpm run dev:services",
+    "dev:db": "docker compose up -d",
+    "dev:down": "docker compose down",
+    "dev:services": "concurrently --kill-others-on-fail --names backend,frontend \"pnpm --filter backend dev\" \"pnpm --filter frontend dev\"",
+    "build": "echo Use workspace scripts: pnpm -r build",
+    "test": "echo Use workspace scripts: pnpm -r test",
+    "format": "prettier -w .",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

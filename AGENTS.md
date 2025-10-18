@@ -27,7 +27,7 @@ Adapt these rules if the actual layout differs, but keep the same intent and str
 ## Tooling and Runtimes
 
 - Node 18+ (LTS). Package manager: `pnpm` preferred, else `npm`/`yarn`.
-- MySQL 8+. Local DB via Docker is recommended.
+- MySQL 8+. Local DB via Docker is recommended (see `docker-compose.yml`).
 - Lint/format: ESLint + Prettier (respect existing configs).
 
 ## Environment Variables (expected)
