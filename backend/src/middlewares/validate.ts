@@ -13,9 +13,8 @@ export const validate = (schema: ZodSchema<any>) =>
     }
     // Replace with parsed values to ensure types
     const { body, params, query } = result.data as any;
-    req.body = body;
-    req.params = params;
-    req.query = query;
+    if (body !== undefined) req.body = body;
+    if (params !== undefined) req.params = params;
+    if (query !== undefined) req.query = query;
     next();
   };
-

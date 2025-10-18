@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User {
@@ -32,21 +33,20 @@ model Project {
   @@index([ownerId])
 }
 
-enum Priority {
-  LOW
-  MEDIUM
-  HIGH
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
 }
 
 model Task {
   id          String    @id @default(cuid()) @db.Char(25)
   title       String    @db.VarChar(200)
   description String?   @db.Text
-  completed   Boolean   @default(false)
-  dueDate     DateTime?
-  priority    Priority  @default(MEDIUM)
+  status      TaskStatus @default(PENDING)
+  dueDate     DateTime  @default(now())
   projectId   String    @db.Char(25)
-  project     Project   @relation(fields: [projectId], references: [id])
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assigneeId  String?   @db.Char(25)
   assignee    User?     @relation("TaskAssignee", fields: [assigneeId], references: [id])
   createdAt   DateTime  @default(now())

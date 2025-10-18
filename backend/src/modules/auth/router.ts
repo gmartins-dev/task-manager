@@ -51,11 +51,15 @@ authRouter.post('/refresh', async (req, res) => {
       return res.status(401).json({ error: { message: 'Invalid refresh token' } });
     }
     // rotate refresh token by incrementing version
-    const updated = await prisma.user.update({ where: { id: user.id }, data: { tokenVersion: { increment: 1 } } });
-    const accessToken = createAccessToken({ id: user.id, email: user.email });
-    const refreshToken = createRefreshToken({ id: user.id, tokenVersion: updated.tokenVersion });
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { tokenVersion: { increment: 1 } },
+      select: { id: true, email: true, name: true, tokenVersion: true },
+    });
+    const accessToken = createAccessToken({ id: updated.id, email: updated.email });
+    const refreshToken = createRefreshToken({ id: updated.id, tokenVersion: updated.tokenVersion });
     setRefreshCookie(res, refreshToken);
-    return res.json({ accessToken });
+    return res.json({ accessToken, user: { id: updated.id, email: updated.email, name: updated.name } });
   } catch {
     return res.status(401).json({ error: { message: 'Invalid refresh token' } });
   }
@@ -65,4 +69,3 @@ authRouter.post('/logout', async (_req, res) => {
   clearRefreshCookie(res);
   res.json({ ok: true });
 });
-

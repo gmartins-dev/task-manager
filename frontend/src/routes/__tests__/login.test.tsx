@@ -4,9 +4,12 @@ import { LoginPage } from '../login';
 
 describe('LoginPage', () => {
   it('renders inputs', () => {
-    render(<MemoryRouter><LoginPage /></MemoryRouter>);
-    expect(screen.getByPlaceholderText(/email/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/password/i)).toBeInTheDocument();
+    render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
   });
 });
-

@@ -9,6 +9,7 @@ import {
   ProjectUpdateSchema,
   TaskCreateSchema,
   TaskIdSchema,
+  TaskStatusValues,
   TaskUpdateSchema,
 } from './schemas';
 
@@ -77,9 +78,20 @@ projectsRouter.delete('/:id', validate(ProjectIdSchema), async (req, res, next) 
 projectsRouter.get('/:projectId/tasks', validate(ProjectTasksSchema), async (req, res, next) => {
   try {
     const { projectId } = req.params as any;
+    const { status, sort } = (req.query as any) ?? {};
     const project = await prisma.project.findFirst({ where: { id: projectId, ownerId: req.user!.id } });
     if (!project) return res.status(404).json({ error: { message: 'Project not found' } });
-    const tasks = await prisma.task.findMany({ where: { projectId }, orderBy: { updatedAt: 'desc' } });
+    const orderBy =
+      sort === 'dueDateAsc'
+        ? { dueDate: 'asc' as const }
+        : sort === 'dueDateDesc'
+        ? { dueDate: 'desc' as const }
+        : { updatedAt: 'desc' as const };
+    const where = {
+      projectId,
+      ...(status ? { status } : {}),
+    };
+    const tasks = await prisma.task.findMany({ where, orderBy });
     res.json({ tasks });
   } catch (err) { next(err); }
 });
@@ -88,15 +100,18 @@ projectsRouter.get('/:projectId/tasks', validate(ProjectTasksSchema), async (req
 projectsRouter.post('/:projectId/tasks', validate(TaskCreateSchema), async (req, res, next) => {
   try {
     const { projectId } = req.params as any;
-    const { title, description, dueDate, priority, assigneeId } = req.body as any;
+    const { title, description, dueDate, status, assigneeId } = req.body as any;
     const project = await prisma.project.findFirst({ where: { id: projectId, ownerId: req.user!.id } });
     if (!project) return res.status(404).json({ error: { message: 'Project not found' } });
+    if (assigneeId && assigneeId !== req.user!.id) {
+      return res.status(400).json({ error: { message: 'Invalid assignee for this project' } });
+    }
     const task = await prisma.task.create({ data: {
       title,
       description,
-      dueDate: dueDate ? new Date(dueDate) : undefined,
-      priority,
-      assigneeId,
+      dueDate: new Date(dueDate),
+      status: status && TaskStatusValues.includes(status) ? status : undefined,
+      assigneeId: assigneeId ?? undefined,
       projectId,
     }});
     res.status(201).json({ task });
@@ -112,11 +127,16 @@ projectsRouter.patch('/tasks/:id', validate(TaskUpdateSchema), async (req, res, 
     if (!task || task.project.ownerId !== req.user!.id) {
       return res.status(404).json({ error: { message: 'Task not found' } });
     }
-    const { title, description, completed, dueDate, priority, assigneeId } = req.body as any;
+    const { title, description, dueDate, status, assigneeId } = req.body as any;
+    if (assigneeId && assigneeId !== req.user!.id) {
+      return res.status(400).json({ error: { message: 'Invalid assignee for this project' } });
+    }
     const updated = await prisma.task.update({ where: { id }, data: {
-      title, description, completed, priority,
-      assigneeId: assigneeId === null ? null : assigneeId,
-      dueDate: dueDate === null ? null : (dueDate ? new Date(dueDate) : undefined),
+      title,
+      description,
+      status: status && TaskStatusValues.includes(status) ? status : undefined,
+      assigneeId: assigneeId === null ? null : assigneeId ?? undefined,
+      dueDate: dueDate ? new Date(dueDate) : undefined,
     }});
     res.json({ task: updated });
   } catch (err) { next(err); }

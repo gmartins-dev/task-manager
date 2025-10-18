@@ -13,6 +13,7 @@ export async function api(path: string, options: ApiOptions = {}) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+  const isRefreshCall = path === '/auth/refresh';
 
   const doFetch = async () =>
     fetch(baseURL + path, {
@@ -24,7 +25,7 @@ export async function api(path: string, options: ApiOptions = {}) {
 
   let res = await doFetch();
 
-  if (res.status === 401 && options.credentials === 'include') {
+  if (!isRefreshCall && res.status === 401 && options.credentials === 'include') {
     try {
       const refreshRes = await fetch(baseURL + '/auth/refresh', { method: 'POST', credentials: 'include' });
       const refreshData = await refreshRes.json().catch(() => ({}));

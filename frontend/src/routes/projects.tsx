@@ -1,38 +1,118 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../util/api';
 import { useAuthStore } from '../stores/auth';
-import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
+import { Button } from '../components/ui/button';
+
+type Project = {
+  id: string;
+  name: string;
+  description?: string | null;
+  createdAt: string;
+};
 
 export function ProjectsPage() {
   const token = useAuthStore((s) => s.accessToken);
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
   const [name, setName] = useState('');
-  const { data, isLoading, error } = useQuery({
+  const [description, setDescription] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['projects'],
-    queryFn: async () => api('/projects', { credentials: 'include', method: 'GET' }).then(r => r.projects),
+    queryFn: async () => api('/projects', { credentials: 'include' }).then((r) => r.projects as Project[]),
     enabled: !!token,
   });
-  const create = useMutation({
-    mutationFn: async () => api('/projects', { method: 'POST', credentials: 'include', body: { name } }),
-    onSuccess: () => { setName(''); qc.invalidateQueries({ queryKey: ['projects'] }); },
+
+  const createProject = useMutation({
+    mutationFn: async () => {
+      if (!name.trim()) throw new Error('Project name is required');
+      return api('/projects', {
+        method: 'POST',
+        credentials: 'include',
+        body: { name: name.trim(), description: description.trim() || undefined },
+      });
+    },
+    onSuccess: () => {
+      setName('');
+      setDescription('');
+      setFormError(null);
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+    onError: (error: unknown) => {
+      setFormError(error instanceof Error ? error.message : 'Unable to create project');
+    },
   });
-  if (isLoading) return <p>Loading...</p>;
-  if (error) return <p>Error loading projects</p>;
+
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        <input className="border p-2 rounded flex-1" placeholder="New project name" value={name} onChange={(e) => setName(e.target.value)} />
-        <button className="bg-black text-white px-3 rounded" onClick={() => create.mutate()} disabled={!name}>Add</button>
-      </div>
-      <ul className="space-y-2">
-        {data?.map((p: any) => (
-          <li key={p.id} className="border p-3 rounded hover:bg-gray-50 dark:hover:bg-gray-900">
-            <Link to={`/projects/${p.id}`}>{p.name}</Link>
-          </li>
-        ))}
-      </ul>
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+          <CardTitle>New project</CardTitle>
+          <CardDescription>Create a workspace to group tasks by initiative or team.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Input
+            placeholder="Project name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+          <Textarea
+            placeholder="Short description (optional)"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+          {formError && <p className="text-sm text-destructive">{formError}</p>}
+          <Button
+            onClick={() => createProject.mutate()}
+            disabled={createProject.isPending}
+            className="w-full sm:w-auto"
+          >
+            {createProject.isPending ? 'Creating…' : 'Create project'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Projects</h2>
+          <span className="text-sm text-muted-foreground">{data?.length ?? 0} total</span>
+        </div>
+        {isLoading && <p className="text-sm text-muted-foreground">Loading projects…</p>}
+        {isError && (
+          <p className="text-sm text-destructive">We couldn&apos;t load your projects. Please retry shortly.</p>
+        )}
+        {!isLoading && !isError && (!data || data.length === 0) && (
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              You don&apos;t have any projects yet. Create one above to get started.
+            </CardContent>
+          </Card>
+        )}
+        <div className="grid gap-4 md:grid-cols-2">
+          {data?.map((project) => (
+            <Card key={project.id} className="transition hover:border-primary/40">
+              <CardHeader className="space-y-1">
+                <CardTitle className="text-xl">
+                  <Link to={`/projects/${project.id}`} className="hover:underline">
+                    {project.name}
+                  </Link>
+                </CardTitle>
+                {project.description && (
+                  <CardDescription className="line-clamp-3">{project.description}</CardDescription>
+                )}
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                Created {new Date(project.createdAt).toLocaleDateString()}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
-
