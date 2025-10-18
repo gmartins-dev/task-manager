@@ -41,11 +41,11 @@ const statusLabel = (status: Task['status']) => {
 const statusVariant = (status: Task['status']) => {
   switch (status) {
     case 'COMPLETED':
-      return 'secondary' as const;
+      return 'completed' as const;
     case 'IN_PROGRESS':
-      return 'outline' as const;
+      return 'progress' as const;
     default:
-      return 'default' as const;
+      return 'pending' as const;
   }
 };
 
