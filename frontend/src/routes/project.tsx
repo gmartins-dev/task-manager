@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, GripVertical } from 'lucide-react';
 import { api } from '../util/api';
 import {
   Card,
@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
+import { cn } from '../lib/utils';
 
 const STATUS_OPTIONS = ['PENDING', 'IN_PROGRESS', 'COMPLETED'] as const;
 
@@ -48,9 +49,9 @@ type Project = {
   description?: string | null;
 };
 
-type TaskStatus = typeof STATUS_OPTIONS[number];
+export type TaskStatus = typeof STATUS_OPTIONS[number];
 
-type Task = {
+export type Task = {
   id: string;
   title: string;
   description?: string | null;
@@ -58,11 +59,48 @@ type Task = {
   dueDate: string;
 };
 
-const STATUS_COLUMNS: Array<{ value: TaskStatus; label: string }> = [
-  { value: 'PENDING', label: 'Pendente' },
-  { value: 'IN_PROGRESS', label: 'Em andamento' },
-  { value: 'COMPLETED', label: 'Concluida' },
-];
+const STATUS_META: Record<
+  TaskStatus,
+  {
+    label: string;
+    badgeVariant: 'pending' | 'progress' | 'completed';
+    textClass: string;
+    dotClass: string;
+    order: number;
+  }
+> = {
+  PENDING: {
+    label: 'Pendente',
+    badgeVariant: 'pending',
+    textClass: 'text-amber-700',
+    dotClass: 'bg-amber-500',
+    order: 0,
+  },
+  IN_PROGRESS: {
+    label: 'Em andamento',
+    badgeVariant: 'progress',
+    textClass: 'text-sky-700',
+    dotClass: 'bg-sky-500',
+    order: 1,
+  },
+  COMPLETED: {
+    label: 'Concluida',
+    badgeVariant: 'completed',
+    textClass: 'text-emerald-700',
+    dotClass: 'bg-emerald-500',
+    order: 2,
+  },
+};
+
+const STATUS_COLUMNS: Array<{ value: TaskStatus; label: string }> = STATUS_OPTIONS.map((status) => ({
+  value: status,
+  label: STATUS_META[status].label,
+}));
+
+const STATUS_ORDER: Record<TaskStatus, number> = STATUS_OPTIONS.reduce(
+  (acc, status) => ({ ...acc, [status]: STATUS_META[status].order }),
+  { PENDING: 0, IN_PROGRESS: 1, COMPLETED: 2 },
+);
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Informe um titulo'),
@@ -73,29 +111,66 @@ const taskFormSchema = z.object({
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
 
-const statusLabel = (status: TaskStatus) => {
-  switch (status) {
-    case 'PENDING':
-      return 'Pendente';
-    case 'IN_PROGRESS':
-      return 'Em andamento';
-    case 'COMPLETED':
-      return 'Concluida';
-    default:
-      return status;
-  }
+const statusLabel = (status: TaskStatus) => STATUS_META[status]?.label ?? status;
+
+const statusVariant = (status: TaskStatus) => STATUS_META[status]?.badgeVariant ?? 'pending';
+
+const statusTextClass = (status: TaskStatus) =>
+  STATUS_META[status]?.textClass ?? 'text-muted-foreground';
+
+const statusDotClass = (status: TaskStatus) =>
+  STATUS_META[status]?.dotClass ?? 'bg-muted-foreground/50';
+
+type TableSortColumn = 'title' | 'status' | 'dueDate';
+type TableSortDirection = 'asc' | 'desc';
+export type TaskTableSort = { column: TableSortColumn; direction: TableSortDirection };
+
+const renderStatusOptionContent = (status: TaskStatus) => (
+  <span className="flex items-center gap-2">
+    <span className={cn('h-2 w-2 rounded-full', statusDotClass(status))} />
+    <span className={cn('font-medium', statusTextClass(status))}>{statusLabel(status)}</span>
+  </span>
+);
+
+const compareTitle = (a: string, b: string) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' });
+
+const toTimestamp = (value: string) => {
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
 };
 
-const statusVariant = (status: TaskStatus) => {
-  switch (status) {
-    case 'COMPLETED':
-      return 'completed' as const;
-    case 'IN_PROGRESS':
-      return 'progress' as const;
-    default:
-      return 'pending' as const;
-  }
-};
+export function sortTasksForTable(tasks: Task[], sort: TaskTableSort) {
+  const clone = [...tasks];
+  return clone.sort((taskA, taskB) => {
+    switch (sort.column) {
+      case 'title': {
+        const comparison = compareTitle(taskA.title, taskB.title);
+        return sort.direction === 'asc' ? comparison : -comparison;
+      }
+      case 'status': {
+        const comparison = STATUS_ORDER[taskA.status] - STATUS_ORDER[taskB.status];
+        if (comparison !== 0) {
+          return sort.direction === 'asc' ? comparison : -comparison;
+        }
+        const dateCompare = toTimestamp(taskA.dueDate) - toTimestamp(taskB.dueDate);
+        if (dateCompare !== 0) {
+          return sort.direction === 'asc' ? dateCompare : -dateCompare;
+        }
+        const titleFallback = compareTitle(taskA.title, taskB.title);
+        return sort.direction === 'asc' ? titleFallback : -titleFallback;
+      }
+      case 'dueDate':
+      default: {
+        const comparison = toTimestamp(taskA.dueDate) - toTimestamp(taskB.dueDate);
+        if (comparison !== 0) {
+          return sort.direction === 'asc' ? comparison : -comparison;
+        }
+        const titleFallback = compareTitle(taskA.title, taskB.title);
+        return sort.direction === 'asc' ? titleFallback : -titleFallback;
+      }
+    }
+  });
+}
 
 const formatDateForInput = (iso: string) => {
   try {
@@ -119,6 +194,10 @@ export function ProjectPage() {
   const [filters, setFilters] = useState<{ status: TaskStatus | 'all'; sort: 'dueDateAsc' | 'dueDateDesc' }>({
     status: 'all',
     sort: 'dueDateAsc',
+  });
+  const [tableSort, setTableSort] = useState<TaskTableSort>({
+    column: 'dueDate',
+    direction: filters.sort === 'dueDateAsc' ? 'asc' : 'desc',
   });
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
@@ -157,14 +236,48 @@ export function ProjectPage() {
     }, { PENDING: [], IN_PROGRESS: [], COMPLETED: [] });
   }, [tasks]);
 
-  const sortedTableTasks = useMemo(() => {
-    const clone = [...tasks];
-    return clone.sort((a, b) => {
-      const aTime = new Date(a.dueDate).getTime();
-      const bTime = new Date(b.dueDate).getTime();
-      return aTime - bTime;
+  const sortedTableTasks = useMemo(() => sortTasksForTable(tasks, tableSort), [tasks, tableSort]);
+
+  const handleTableSort = (column: TableSortColumn) => {
+    setTableSort((previous) => {
+      const isSameColumn = previous.column === column;
+      const nextDirection = isSameColumn
+        ? previous.direction === 'asc'
+          ? 'desc'
+          : 'asc'
+        : column === 'dueDate'
+          ? filters.sort === 'dueDateDesc'
+            ? 'desc'
+            : 'asc'
+          : 'asc';
+
+      const nextSort: TaskTableSort = { column, direction: nextDirection };
+
+      if (column === 'dueDate') {
+        setFilters((prev) => ({
+          ...prev,
+          sort: nextDirection === 'asc' ? 'dueDateAsc' : 'dueDateDesc',
+        }));
+      }
+
+      return nextSort;
     });
-  }, [tasks]);
+  };
+
+  const getAriaSort = (column: TableSortColumn): 'ascending' | 'descending' | 'none' => {
+    if (tableSort.column !== column) return 'none';
+    return tableSort.direction === 'asc' ? 'ascending' : 'descending';
+  };
+
+  const renderSortIcon = (column: TableSortColumn) => {
+    if (tableSort.column !== column) {
+      return <ArrowUpDown className="h-3.5 w-3.5 opacity-60" aria-hidden />;
+    }
+    if (tableSort.direction === 'asc') {
+      return <ArrowUp className="h-3.5 w-3.5" aria-hidden />;
+    }
+    return <ArrowDown className="h-3.5 w-3.5" aria-hidden />;
+  };
 
   const openTaskDetails = (task: Task) => {
     setSelectedTask(task);
@@ -318,10 +431,46 @@ export function ProjectPage() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                  <th className="py-2 pr-6 font-medium">Titulo</th>
-                  <th className="py-2 pr-6 font-medium">Status</th>
-                  <th className="py-2 pr-6 font-medium">Entrega</th>
+                <tr className="border-b text-left text-xs uppercase">
+                  <th className="py-2 pr-6 font-medium" aria-sort={getAriaSort('title')}>
+                    <button
+                      type="button"
+                      onClick={() => handleTableSort('title')}
+                      className={cn(
+                        'flex w-full items-center gap-2 text-left font-medium tracking-wide transition-colors',
+                        tableSort.column === 'title' ? 'text-foreground' : 'text-muted-foreground',
+                      )}
+                    >
+                      <span>Titulo</span>
+                      {renderSortIcon('title')}
+                    </button>
+                  </th>
+                  <th className="py-2 pr-6 font-medium" aria-sort={getAriaSort('status')}>
+                    <button
+                      type="button"
+                      onClick={() => handleTableSort('status')}
+                      className={cn(
+                        'flex w-full items-center gap-2 text-left font-medium tracking-wide transition-colors',
+                        tableSort.column === 'status' ? 'text-foreground' : 'text-muted-foreground',
+                      )}
+                    >
+                      <span>Status</span>
+                      {renderSortIcon('status')}
+                    </button>
+                  </th>
+                  <th className="py-2 pr-6 font-medium" aria-sort={getAriaSort('dueDate')}>
+                    <button
+                      type="button"
+                      onClick={() => handleTableSort('dueDate')}
+                      className={cn(
+                        'flex w-full items-center gap-2 text-left font-medium tracking-wide transition-colors',
+                        tableSort.column === 'dueDate' ? 'text-foreground' : 'text-muted-foreground',
+                      )}
+                    >
+                      <span>Entrega</span>
+                      {renderSortIcon('dueDate')}
+                    </button>
+                  </th>
                   {showDescriptionColumn && <th className="py-2 pr-6 font-medium">Descricao</th>}
                 </tr>
               </thead>
@@ -401,62 +550,13 @@ export function ProjectPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">{projectQuery.data.name}</h1>
-          {projectQuery.data.description && (
-            <p className="max-w-3xl text-sm text-muted-foreground">
-              {projectQuery.data.description}
-            </p>
-          )}
-        </div>
-        <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
-          <div className="flex flex-wrap gap-3 md:justify-end">
-            <Select
-              value={filters.status}
-              onValueChange={(value) =>
-                setFilters((prev) => ({ ...prev, status: value as TaskStatus | 'all' }))
-              }
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Filtrar por status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
-                {STATUS_COLUMNS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={filters.sort}
-              onValueChange={(value: 'dueDateAsc' | 'dueDateDesc') =>
-                setFilters((prev) => ({ ...prev, sort: value }))
-              }
-            >
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="Ordenar por data" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="dueDateAsc">Mais proximas</SelectItem>
-                <SelectItem value="dueDateDesc">Mais distantes</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex gap-2 self-end">
-            <Button variant={view === 'table' ? 'default' : 'outline'} onClick={() => setView('table')}>
-              Tabela
-            </Button>
-            <Button
-              variant={view === 'kanban' ? 'default' : 'outline'}
-              onClick={() => setView('kanban')}
-            >
-              Kanban
-            </Button>
-          </div>
-        </div>
+      <div className="space-y-3">
+        <h1 className="text-2xl font-semibold text-foreground">{projectQuery.data.name}</h1>
+        {projectQuery.data.description && (
+          <p className="max-w-3xl text-sm text-muted-foreground">
+            {projectQuery.data.description}
+          </p>
+        )}
       </div>
 
       <Card>
@@ -488,13 +588,13 @@ export function ProjectPage() {
           <div className="space-y-2">
             <label className="text-sm font-medium">Status</label>
             <Select value={status} onValueChange={(value: TaskStatus) => setStatus(value)}>
-              <SelectTrigger>
+              <SelectTrigger className={statusTextClass(status)}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {STATUS_COLUMNS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {renderStatusOptionContent(option.value)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -508,6 +608,73 @@ export function ProjectPage() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="flex flex-col gap-3 rounded-lg border bg-card/40 p-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap gap-3">
+          <Select
+            value={filters.status}
+            onValueChange={(value) =>
+              setFilters((prev) => ({ ...prev, status: value as TaskStatus | 'all' }))
+            }
+          >
+            <SelectTrigger
+              className={cn(
+                'w-48',
+                filters.status !== 'all' ? statusTextClass(filters.status) : 'text-muted-foreground',
+              )}
+            >
+              <SelectValue placeholder="Filtrar por status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                <span className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                  <span className="font-medium text-muted-foreground">Todos os status</span>
+                </span>
+              </SelectItem>
+              {STATUS_COLUMNS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {renderStatusOptionContent(option.value)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 md:justify-end">
+          <Select
+            value={filters.sort}
+            onValueChange={(value: 'dueDateAsc' | 'dueDateDesc') => {
+              setFilters((prev) => ({ ...prev, sort: value }));
+              setTableSort({ column: 'dueDate', direction: value === 'dueDateAsc' ? 'asc' : 'desc' });
+            }}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Ordenar por data" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="dueDateAsc">Mais proximas</SelectItem>
+              <SelectItem value="dueDateDesc">Mais distantes</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex gap-2">
+            <Button
+              variant={view === 'table' ? 'default' : 'outline'}
+              onClick={() => setView('table')}
+              aria-pressed={view === 'table'}
+            >
+              Tabela
+            </Button>
+            <Button
+              variant={view === 'kanban' ? 'default' : 'outline'}
+              onClick={() => setView('kanban')}
+              aria-pressed={view === 'kanban'}
+            >
+              Kanban
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {view === 'table' ? renderTableView() : renderKanbanView()}
       {selectedTask && (
@@ -540,8 +707,11 @@ function KanbanColumn({ status, label, tasks, onOpenTask }: KanbanColumnProps) {
 
   return (
     <div className="flex h-full flex-col rounded-lg border bg-muted/30">
-      <div className="flex items-center justify-between border-b px-4 py-3 text-sm font-medium text-muted-foreground">
-        <span>{label}</span>
+      <div className="flex items-center justify-between border-b px-4 py-3 text-sm font-medium">
+        <span className={cn('flex items-center gap-2', statusTextClass(status))}>
+          <span className={cn('h-2 w-2 rounded-full', statusDotClass(status))} />
+          {label}
+        </span>
         <span className="text-xs text-muted-foreground">{tasks.length}</span>
       </div>
       <div ref={setNodeRef} className="flex flex-1 flex-col gap-2 p-3">
@@ -677,13 +847,13 @@ function TaskDetailsDialog({ task, onClose, onSubmit, onDelete, saving, deleting
                 value={statusValue}
                 onValueChange={(value: TaskStatus) => form.setValue('status', value)}
               >
-                <SelectTrigger>
+                <SelectTrigger className={statusTextClass(statusValue)}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {STATUS_COLUMNS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {renderStatusOptionContent(option.value)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -723,7 +893,3 @@ function TaskDetailsDialog({ task, onClose, onSubmit, onDelete, saving, deleting
     </div>
   );
 }
-
-
-
-
