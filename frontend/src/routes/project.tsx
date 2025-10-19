@@ -1,6 +1,9 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   DndContext,
   PointerSensor,
@@ -16,6 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
 import { api } from '../util/api';
 import {
   Card,
@@ -36,29 +40,40 @@ import {
 } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
 
+const STATUS_OPTIONS = ['PENDING', 'IN_PROGRESS', 'COMPLETED'] as const;
+
 type Project = {
   id: string;
   name: string;
   description?: string | null;
 };
 
+type TaskStatus = typeof STATUS_OPTIONS[number];
+
 type Task = {
   id: string;
   title: string;
   description?: string | null;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  status: TaskStatus;
   dueDate: string;
 };
 
-const STATUS_OPTIONS: Task['status'][] = ['PENDING', 'IN_PROGRESS', 'COMPLETED'];
-
-const STATUS_COLUMNS: Array<{ value: Task['status']; label: string }> = [
+const STATUS_COLUMNS: Array<{ value: TaskStatus; label: string }> = [
   { value: 'PENDING', label: 'Pendente' },
   { value: 'IN_PROGRESS', label: 'Em andamento' },
   { value: 'COMPLETED', label: 'Concluida' },
 ];
 
-const statusLabel = (status: Task['status']) => {
+const taskFormSchema = z.object({
+  title: z.string().min(1, 'Informe um titulo'),
+  description: z.string().optional(),
+  status: z.enum(STATUS_OPTIONS),
+  dueDate: z.string().min(1, 'Informe a data de entrega'),
+});
+
+type TaskFormValues = z.infer<typeof taskFormSchema>;
+
+const statusLabel = (status: TaskStatus) => {
   switch (status) {
     case 'PENDING':
       return 'Pendente';
@@ -71,7 +86,7 @@ const statusLabel = (status: Task['status']) => {
   }
 };
 
-const statusVariant = (status: Task['status']) => {
+const statusVariant = (status: TaskStatus) => {
   switch (status) {
     case 'COMPLETED':
       return 'completed' as const;
@@ -82,7 +97,15 @@ const statusVariant = (status: Task['status']) => {
   }
 };
 
-type UpdateTaskVariables = { taskId: string; nextStatus: Task['status'] };
+const formatDateForInput = (iso: string) => {
+  try {
+    return new Date(iso).toISOString().slice(0, 10);
+  } catch {
+    return iso;
+  }
+};
+
+type UpdateTaskVariables = { taskId: string; nextStatus: TaskStatus };
 
 export function ProjectPage() {
   const { id } = useParams<{ id: string }>();
@@ -90,13 +113,14 @@ export function ProjectPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [status, setStatus] = useState<Task['status']>('PENDING');
+  const [status, setStatus] = useState<TaskStatus>('PENDING');
   const [formError, setFormError] = useState<string | null>(null);
   const [view, setView] = useState<'table' | 'kanban'>('kanban');
-  const [filters, setFilters] = useState<{ status: Task['status'] | 'all'; sort: 'dueDateAsc' | 'dueDateDesc' }>({
+  const [filters, setFilters] = useState<{ status: TaskStatus | 'all'; sort: 'dueDateAsc' | 'dueDateDesc' }>({
     status: 'all',
     sort: 'dueDateAsc',
   });
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -127,7 +151,7 @@ export function ProjectPage() {
   const tasks = tasksQuery.data ?? [];
 
   const tasksByStatus = useMemo(() => {
-    return STATUS_OPTIONS.reduce<Record<Task['status'], Task[]>>((acc, column) => {
+    return STATUS_OPTIONS.reduce<Record<TaskStatus, Task[]>>((acc, column) => {
       acc[column] = tasks.filter((task) => task.status === column);
       return acc;
     }, { PENDING: [], IN_PROGRESS: [], COMPLETED: [] });
@@ -141,6 +165,12 @@ export function ProjectPage() {
       return aTime - bTime;
     });
   }, [tasks]);
+
+  const openTaskDetails = (task: Task) => {
+    setSelectedTask(task);
+  };
+
+  const closeTaskDetails = () => setSelectedTask(null);
 
   const createTask = useMutation({
     mutationFn: async () =>
@@ -163,6 +193,33 @@ export function ProjectPage() {
       queryClient.invalidateQueries({ queryKey: ['project', id, 'tasks'] });
     },
     onError: () => setFormError('Nao foi possivel criar a tarefa'),
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: async ({
+      id: taskId,
+      data,
+    }: {
+      id: string;
+      data: { title: string; description?: string; status: TaskStatus; dueDate: string };
+    }) =>
+      api(`/projects/tasks/${taskId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        body: data,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project', id, 'tasks'] });
+    },
+  });
+
+  const deleteTask = useMutation({
+    mutationFn: async (taskId: string) =>
+      api(`/projects/tasks/${taskId}`, { method: 'DELETE', credentials: 'include' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project', id, 'tasks'] });
+      setSelectedTask(null);
+    },
   });
 
   const updateTaskStatus = useMutation({
@@ -198,14 +255,43 @@ export function ProjectPage() {
     createTask.mutate();
   };
 
+  const handleUpdateTask = async (values: TaskFormValues) => {
+    if (!selectedTask) return;
+    try {
+      const trimmedDescription = (values.description ?? '').trim();
+      const dueDateValue = values.dueDate ?? '';
+      await updateTaskMutation.mutateAsync({
+        id: selectedTask.id,
+        data: {
+          title: values.title,
+          description: trimmedDescription ? trimmedDescription : undefined,
+          status: values.status,
+          dueDate: new Date(dueDateValue).toISOString(),
+        },
+      });
+      closeTaskDetails();
+    } catch {
+      // keep dialog open so user can ajustar
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteTask.mutateAsync(taskId);
+      closeTaskDetails();
+    } catch {
+      // ignore
+    }
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!active || !over) return;
 
-    const currentStatus = active.data.current?.column as Task['status'] | undefined;
+    const currentStatus = active.data.current?.column as TaskStatus | undefined;
     const overColumn =
-      (over.data.current?.column as Task['status'] | undefined) ||
-      (STATUS_OPTIONS.includes(over.id as Task['status']) ? (over.id as Task['status']) : undefined);
+      (over.data.current?.column as TaskStatus | undefined) ||
+      (STATUS_OPTIONS.includes(over.id as TaskStatus) ? (over.id as TaskStatus) : undefined);
 
     if (!currentStatus || !overColumn || currentStatus === overColumn) return;
 
@@ -241,7 +327,18 @@ export function ProjectPage() {
               </thead>
               <tbody>
                 {sortedTableTasks.map((task) => (
-                  <tr key={task.id} className="border-b last:border-0">
+                  <tr
+                    key={task.id}
+                    className="cursor-pointer border-b last:border-0 hover:bg-muted/40"
+                    onClick={() => openTaskDetails(task)}
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openTaskDetails(task);
+                      }
+                    }}
+                  >
                     <td className="py-3 pr-6 align-top font-medium text-foreground">
                       {task.title}
                     </td>
@@ -271,40 +368,6 @@ export function ProjectPage() {
       <CardHeader className="space-y-4">
         <CardTitle>Kanban</CardTitle>
         <CardDescription>Arraste e solte as tarefas entre as colunas.</CardDescription>
-        <div className="flex flex-wrap gap-3">
-          <Select
-            value={filters.status}
-            onValueChange={(value) =>
-              setFilters((prev) => ({ ...prev, status: value as Task['status'] | 'all' }))
-            }
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Filtrar por status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              {STATUS_COLUMNS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={filters.sort}
-            onValueChange={(value: 'dueDateAsc' | 'dueDateDesc') =>
-              setFilters((prev) => ({ ...prev, sort: value }))
-            }
-          >
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Ordenar por data" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="dueDateAsc">Mais proximas</SelectItem>
-              <SelectItem value="dueDateDesc">Mais distantes</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </CardHeader>
       <CardContent>
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
@@ -319,6 +382,7 @@ export function ProjectPage() {
                     ? tasksByStatus[column.value]
                     : []
                 }
+                onOpenTask={openTaskDetails}
               />
             ))}
           </div>
@@ -337,7 +401,7 @@ export function ProjectPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{projectQuery.data.name}</h1>
           {projectQuery.data.description && (
@@ -346,16 +410,52 @@ export function ProjectPage() {
             </p>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant={view === 'table' ? 'default' : 'outline'} onClick={() => setView('table')}>
-            Tabela
-          </Button>
-          <Button
-            variant={view === 'kanban' ? 'default' : 'outline'}
-            onClick={() => setView('kanban')}
-          >
-            Kanban
-          </Button>
+        <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
+          <div className="flex flex-wrap gap-3 md:justify-end">
+            <Select
+              value={filters.status}
+              onValueChange={(value) =>
+                setFilters((prev) => ({ ...prev, status: value as TaskStatus | 'all' }))
+              }
+            >
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Filtrar por status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                {STATUS_COLUMNS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={filters.sort}
+              onValueChange={(value: 'dueDateAsc' | 'dueDateDesc') =>
+                setFilters((prev) => ({ ...prev, sort: value }))
+              }
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Ordenar por data" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dueDateAsc">Mais proximas</SelectItem>
+                <SelectItem value="dueDateDesc">Mais distantes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex gap-2 self-end">
+            <Button variant={view === 'table' ? 'default' : 'outline'} onClick={() => setView('table')}>
+              Tabela
+            </Button>
+            <Button
+              variant={view === 'kanban' ? 'default' : 'outline'}
+              onClick={() => setView('kanban')}
+            >
+              Kanban
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -387,7 +487,7 @@ export function ProjectPage() {
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Status</label>
-            <Select value={status} onValueChange={(value: Task['status']) => setStatus(value)}>
+            <Select value={status} onValueChange={(value: TaskStatus) => setStatus(value)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -410,17 +510,29 @@ export function ProjectPage() {
       </Card>
 
       {view === 'table' ? renderTableView() : renderKanbanView()}
+      {selectedTask && (
+        <TaskDetailsDialog
+          key={selectedTask.id}
+          task={selectedTask}
+          onClose={closeTaskDetails}
+          onSubmit={handleUpdateTask}
+          onDelete={() => handleDeleteTask(selectedTask.id)}
+          saving={updateTaskMutation.isPending}
+          deleting={deleteTask.isPending}
+        />
+      )}
     </div>
   );
 }
 
 type KanbanColumnProps = {
-  status: Task['status'];
+  status: TaskStatus;
   label: string;
   tasks: Task[];
+  onOpenTask: (task: Task) => void;
 };
 
-function KanbanColumn({ status, label, tasks }: KanbanColumnProps) {
+function KanbanColumn({ status, label, tasks, onOpenTask }: KanbanColumnProps) {
   const { setNodeRef } = useDroppable({
     id: status,
     data: { column: status },
@@ -439,7 +551,7 @@ function KanbanColumn({ status, label, tasks }: KanbanColumnProps) {
               Nenhuma tarefa neste status.
             </p>
           ) : (
-            tasks.map((task) => <KanbanCard key={task.id} task={task} />)
+            tasks.map((task) => <KanbanCard key={task.id} task={task} onOpenTask={onOpenTask} />)
           )}
         </SortableContext>
       </div>
@@ -447,7 +559,7 @@ function KanbanColumn({ status, label, tasks }: KanbanColumnProps) {
   );
 }
 
-function KanbanCard({ task }: { task: Task }) {
+function KanbanCard({ task, onOpenTask }: { task: Task; onOpenTask: (task: Task) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { column: task.status },
@@ -465,11 +577,21 @@ function KanbanCard({ task }: { task: Task }) {
       className={`rounded-lg border bg-card p-3 text-sm shadow-sm transition ${
         isDragging ? 'border-primary shadow-lg' : 'hover:border-primary/60'
       }`}
-      {...attributes}
-      {...listeners}
+      onClick={() => onOpenTask(task)}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium text-foreground">{task.title}</span>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2">
+          <button
+            type="button"
+            className="cursor-grab rounded px-1 py-0.5 text-muted-foreground hover:text-foreground"
+            onClick={(event) => event.stopPropagation()}
+            {...listeners}
+            {...attributes}
+          >
+            <GripVertical className="h-4 w-4" aria-hidden />
+          </button>
+          <span className="font-medium text-foreground">{task.title}</span>
+        </div>
         <Badge variant={statusVariant(task.status)}>{statusLabel(task.status)}</Badge>
       </div>
       {task.description && (
@@ -481,3 +603,127 @@ function KanbanCard({ task }: { task: Task }) {
     </div>
   );
 }
+
+type TaskDetailsDialogProps = {
+  task: Task;
+  onClose: () => void;
+  onSubmit: (values: TaskFormValues) => Promise<void>;
+  onDelete: () => Promise<void>;
+  saving: boolean;
+  deleting: boolean;
+};
+
+function TaskDetailsDialog({ task, onClose, onSubmit, onDelete, saving, deleting }: TaskDetailsDialogProps) {
+  const form = useForm<TaskFormValues>({
+    resolver: zodResolver(taskFormSchema),
+    defaultValues: {
+      title: task.title,
+      description: task.description ?? '',
+      status: task.status,
+      dueDate: formatDateForInput(task.dueDate),
+    },
+  });
+  const statusValue = form.watch('status') as TaskStatus;
+
+  useEffect(() => {
+    form.reset({
+      title: task.title,
+      description: task.description ?? '',
+      status: task.status,
+      dueDate: formatDateForInput(task.dueDate),
+    });
+  }, [task, form]);
+
+  const handleSubmit = form.handleSubmit(async (values) => {
+    await onSubmit(values);
+  });
+
+  const handleDelete = async () => {
+    await onDelete();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-lg overflow-hidden rounded-lg border bg-card shadow-xl">
+        <form onSubmit={handleSubmit} className="space-y-6 p-6">
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold text-card-foreground">Detalhes da tarefa</h2>
+            <p className="text-xs text-muted-foreground">
+              Edite as informacoes e salve para atualizar. As alteracoes sao sincronizadas automaticamente.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground" htmlFor="task-title">
+              Titulo
+            </label>
+            <Input id="task-title" {...form.register('title')} />
+            {form.formState.errors.title && (
+              <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground" htmlFor="task-description">
+              Descricao
+            </label>
+            <Textarea id="task-description" rows={4} {...form.register('description')} />
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Status</label>
+              <Select
+                value={statusValue}
+                onValueChange={(value: TaskStatus) => form.setValue('status', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_COLUMNS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground" htmlFor="task-due-date">
+                Data de entrega
+              </label>
+              <Input id="task-due-date" type="date" {...form.register('dueDate')} />
+              {form.formState.errors.dueDate && (
+                <p className="text-xs text-destructive">{form.formState.errors.dueDate.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving || deleting}>
+              Cancelar
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Removendo...' : 'Excluir'}
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
+
+
