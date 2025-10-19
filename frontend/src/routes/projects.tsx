@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { api } from '../util/api';
 import { useAuthStore } from '../stores/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -24,6 +24,8 @@ export function ProjectsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const { data, isLoading, isError } = useQuery({
@@ -62,6 +64,23 @@ export function ProjectsPage() {
     },
     onError: () => {
       setDeleteError('Nao foi possivel excluir o projeto. Tente novamente.');
+    },
+  });
+
+  const updateProject = useMutation({
+    mutationFn: async ({ id, name: nextName, description: nextDescription }: { id: string; name: string; description?: string }) =>
+      api(`/projects/${id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        body: { name: nextName, description: nextDescription },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      setProjectToEdit(null);
+      setEditError(null);
+    },
+    onError: (error: unknown) => {
+      setEditError(error instanceof Error ? error.message : 'Nao foi possivel atualizar o projeto');
     },
   });
 
@@ -128,19 +147,34 @@ export function ProjectsPage() {
               <CardHeader className="space-y-2">
                 <div className="flex items-start justify-between gap-4">
                   <CardTitle className="text-xl group-hover:text-primary">{project.name}</CardTitle>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Excluir o projeto ${project.name}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setProjectToDelete(project);
-                      setDeleteError(null);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden />
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Editar o projeto ${project.name}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setProjectToEdit(project);
+                        setEditError(null);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" aria-hidden />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Excluir o projeto ${project.name}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setProjectToDelete(project);
+                        setDeleteError(null);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                    </Button>
+                  </div>
                 </div>
                 {project.description && (
                   <CardDescription className="line-clamp-3">{project.description}</CardDescription>
@@ -153,6 +187,21 @@ export function ProjectsPage() {
           ))}
         </div>
       </section>
+
+      {projectToEdit && (
+        <EditProjectDialog
+          project={projectToEdit}
+          onCancel={() => {
+            setProjectToEdit(null);
+            setEditError(null);
+          }}
+          onSubmit={(values) =>
+            updateProject.mutate({ id: projectToEdit.id, name: values.name, description: values.description })
+          }
+          pending={updateProject.isPending}
+          errorMessage={editError}
+        />
+      )}
 
       {projectToDelete && (
         <DeleteProjectDialog
@@ -177,6 +226,89 @@ type DeleteProjectDialogProps = {
   pending: boolean;
   errorMessage: string | null;
 };
+
+type EditProjectDialogProps = {
+  project: Project;
+  onCancel: () => void;
+  onSubmit: (values: { name: string; description?: string }) => void;
+  pending: boolean;
+  errorMessage: string | null;
+};
+
+function EditProjectDialog({ project, onCancel, onSubmit, pending, errorMessage }: EditProjectDialogProps) {
+  const [name, setName] = useState(project.name);
+  const [description, setDescription] = useState(project.description ?? '');
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setName(project.name);
+    setDescription(project.description ?? '');
+    setLocalError(null);
+  }, [project]);
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setLocalError('Informe um nome para o projeto');
+      return;
+    }
+    const trimmedDescription = description.trim();
+    setLocalError(null);
+    onSubmit({
+      name: trimmedName,
+      description: trimmedDescription ? trimmedDescription : undefined,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-md overflow-hidden rounded-lg border bg-card shadow-xl">
+        <form onSubmit={handleSubmit} className="space-y-6 p-6">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold text-card-foreground">Editar projeto</h2>
+            <p className="text-sm text-muted-foreground">
+              Atualize o nome e a descricao para manter as informacoes alinhadas com o time.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground" htmlFor="edit-project-name">
+              Nome
+            </label>
+            <Input
+              id="edit-project-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              disabled={pending}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground" htmlFor="edit-project-description">
+              Descricao
+            </label>
+            <Textarea
+              id="edit-project-description"
+              rows={4}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              disabled={pending}
+            />
+          </div>
+          {localError && <p className="text-sm text-destructive">{localError}</p>}
+          {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
+          <div className="flex items-center justify-end gap-3">
+            <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? 'Salvando...' : 'Salvar alteracoes'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function DeleteProjectDialog({
   projectName,
