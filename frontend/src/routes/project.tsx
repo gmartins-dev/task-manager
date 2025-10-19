@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ArrowDown, ArrowUp, ArrowUpDown, GripVertical } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Pencil, Plus } from 'lucide-react';
 import { api } from '../util/api';
 import {
   Card,
@@ -185,11 +185,6 @@ type UpdateTaskVariables = { taskId: string; nextStatus: TaskStatus };
 export function ProjectPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [dueDate, setDueDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [status, setStatus] = useState<TaskStatus>('PENDING');
-  const [formError, setFormError] = useState<string | null>(null);
   const [view, setView] = useState<'table' | 'kanban'>('kanban');
   const [filters, setFilters] = useState<{ status: TaskStatus | 'all'; sort: 'dueDateAsc' | 'dueDateDesc' }>({
     status: 'all',
@@ -200,6 +195,8 @@ export function ProjectPage() {
     direction: filters.sort === 'dueDateAsc' ? 'asc' : 'desc',
   });
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [createTaskStatus, setCreateTaskStatus] = useState<TaskStatus | null>(null);
+  const [createTaskError, setCreateTaskError] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -285,27 +282,46 @@ export function ProjectPage() {
 
   const closeTaskDetails = () => setSelectedTask(null);
 
+  const openCreateTaskDialog = (status: TaskStatus) => {
+    setCreateTaskStatus(status);
+    setCreateTaskError(null);
+  };
+
+  const closeCreateTaskDialog = () => {
+    setCreateTaskStatus(null);
+    setCreateTaskError(null);
+  };
+
   const createTask = useMutation({
-    mutationFn: async () =>
+    mutationFn: async ({
+      title,
+      description,
+      dueDate,
+      status,
+    }: {
+      title: string;
+      description?: string;
+      dueDate: string;
+      status: TaskStatus;
+    }) =>
       api(`/projects/${id}/tasks`, {
         method: 'POST',
         credentials: 'include',
         body: {
-          title: title.trim(),
-          description: description.trim() || undefined,
+          title,
+          description,
           dueDate: new Date(`${dueDate}T00:00:00`).toISOString(),
           status,
         },
       }),
     onSuccess: () => {
-      setTitle('');
-      setDescription('');
-      setStatus('PENDING');
-      setDueDate(new Date().toISOString().slice(0, 10));
-      setFormError(null);
       queryClient.invalidateQueries({ queryKey: ['project', id, 'tasks'] });
     },
-    onError: () => setFormError('Nao foi possivel criar a tarefa'),
+    onError: (error: unknown) => {
+      setCreateTaskError(
+        error instanceof Error ? error.message : 'Nao foi possivel criar a tarefa',
+      );
+    },
   });
 
   const updateTaskMutation = useMutation({
@@ -335,6 +351,27 @@ export function ProjectPage() {
     },
   });
 
+  const handleCreateTaskSubmit = async (values: TaskFormValues) => {
+    const trimmedTitle = values.title.trim();
+    if (!trimmedTitle) {
+      setCreateTaskError('Informe um titulo para a tarefa');
+      return;
+    }
+    setCreateTaskError(null);
+    const trimmedDescription = values.description?.trim() ?? '';
+    try {
+      await createTask.mutateAsync({
+        title: trimmedTitle,
+        description: trimmedDescription ? trimmedDescription : undefined,
+        dueDate: values.dueDate,
+        status: values.status,
+      });
+      closeCreateTaskDialog();
+    } catch {
+      // error handled via mutation onError, keep dialog open
+    }
+  };
+
   const updateTaskStatus = useMutation({
     mutationFn: ({ taskId, nextStatus }: UpdateTaskVariables) =>
       api(`/projects/tasks/${taskId}`, {
@@ -359,14 +396,6 @@ export function ProjectPage() {
       queryClient.invalidateQueries({ queryKey: ['project', id, 'tasks'] });
     },
   });
-
-  const handleCreateTask = () => {
-    if (!title.trim()) {
-      setFormError('Informe um titulo para a tarefa');
-      return;
-    }
-    createTask.mutate();
-  };
 
   const handleUpdateTask = async (values: TaskFormValues) => {
     if (!selectedTask) return;
@@ -488,17 +517,22 @@ export function ProjectPage() {
                       }
                     }}
                   >
-                    <td className="py-3 pr-6 align-top font-medium text-foreground">
+                    <td className="py-3 pr-6 align-middle font-medium text-foreground">
                       {task.title}
                     </td>
-                    <td className="py-3 pr-6 align-top">
-                      <Badge variant={statusVariant(task.status)}>{statusLabel(task.status)}</Badge>
+                    <td className="py-3 pr-6 align-middle">
+                      <Badge
+                        variant={statusVariant(task.status)}
+                        className="justify-center whitespace-nowrap px-3 py-0.5 text-xs font-semibold"
+                      >
+                        {statusLabel(task.status)}
+                      </Badge>
                     </td>
-                    <td className="py-3 pr-6 align-top text-muted-foreground">
+                    <td className="py-3 pr-6 align-middle text-muted-foreground">
                       {new Date(task.dueDate).toLocaleDateString()}
                     </td>
                     {showDescriptionColumn && (
-                      <td className="py-3 pr-6 align-top text-muted-foreground">
+                      <td className="py-3 pr-6 align-middle text-muted-foreground">
                         {task.description ?? '---'}
                       </td>
                     )}
@@ -532,6 +566,7 @@ export function ProjectPage() {
                     : []
                 }
                 onOpenTask={openTaskDetails}
+                onCreateTask={openCreateTaskDialog}
               />
             ))}
           </div>
@@ -558,56 +593,6 @@ export function ProjectPage() {
           </p>
         )}
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Criar tarefa</CardTitle>
-          <CardDescription>Adicione atividades para acompanhar o progresso deste projeto.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2">
-          <div className="md:col-span-2 space-y-2">
-            <Input
-              placeholder="Titulo da tarefa"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-            />
-          </div>
-          <Textarea
-            placeholder="Descricao (opcional)"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-          />
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Data de entrega</label>
-            <Input
-              type="date"
-              value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Status</label>
-            <Select value={status} onValueChange={(value: TaskStatus) => setStatus(value)}>
-              <SelectTrigger className={statusTextClass(status)}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_COLUMNS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {renderStatusOptionContent(option.value)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {formError && <p className="text-sm text-destructive md:col-span-2">{formError}</p>}
-          <div className="md:col-span-2">
-            <Button onClick={handleCreateTask} disabled={createTask.isPending}>
-              {createTask.isPending ? 'Adicionando tarefa...' : 'Adicionar tarefa'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <div className="flex flex-col gap-3 rounded-lg border bg-card/40 p-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap gap-3">
@@ -688,6 +673,15 @@ export function ProjectPage() {
           deleting={deleteTask.isPending}
         />
       )}
+      {createTaskStatus && (
+        <CreateTaskDialog
+          status={createTaskStatus}
+          onClose={closeCreateTaskDialog}
+          onSubmit={handleCreateTaskSubmit}
+          saving={createTask.isPending}
+          errorMessage={createTaskError}
+        />
+      )}
     </div>
   );
 }
@@ -697,9 +691,10 @@ type KanbanColumnProps = {
   label: string;
   tasks: Task[];
   onOpenTask: (task: Task) => void;
+  onCreateTask: (status: TaskStatus) => void;
 };
 
-function KanbanColumn({ status, label, tasks, onOpenTask }: KanbanColumnProps) {
+function KanbanColumn({ status, label, tasks, onOpenTask, onCreateTask }: KanbanColumnProps) {
   const { setNodeRef } = useDroppable({
     id: status,
     data: { column: status },
@@ -712,7 +707,19 @@ function KanbanColumn({ status, label, tasks, onOpenTask }: KanbanColumnProps) {
           <span className={cn('h-2 w-2 rounded-full', statusDotClass(status))} />
           {label}
         </span>
-        <span className="text-xs text-muted-foreground">{tasks.length}</span>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => onCreateTask(status)}
+            aria-label={`Adicionar tarefa em ${label}`}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+          </Button>
+          <span className="text-xs text-muted-foreground">{tasks.length}</span>
+        </div>
       </div>
       <div ref={setNodeRef} className="flex flex-1 flex-col gap-2 p-3">
         <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
@@ -744,25 +751,42 @@ function KanbanCard({ task, onOpenTask }: { task: Task; onOpenTask: (task: Task)
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-lg border bg-card p-3 text-sm shadow-sm transition ${
+      className={`rounded-lg border bg-card p-3 text-sm shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
         isDragging ? 'border-primary shadow-lg' : 'hover:border-primary/60'
       }`}
       onClick={() => onOpenTask(task)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpenTask(task);
+        }
+      }}
+      {...attributes}
+      {...listeners}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-2">
-          <button
-            type="button"
-            className="cursor-grab rounded px-1 py-0.5 text-muted-foreground hover:text-foreground"
-            onClick={(event) => event.stopPropagation()}
-            {...listeners}
-            {...attributes}
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-medium text-foreground line-clamp-2">{task.title}</span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Badge
+            variant={statusVariant(task.status)}
+            className="whitespace-nowrap px-2 py-0.5 text-xs font-semibold"
           >
-            <GripVertical className="h-4 w-4" aria-hidden />
-          </button>
-          <span className="font-medium text-foreground">{task.title}</span>
+            {statusLabel(task.status)}
+          </Badge>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenTask(task);
+            }}
+            aria-label={`Editar ${task.title}`}
+          >
+            <Pencil className="h-4 w-4" aria-hidden />
+          </Button>
         </div>
-        <Badge variant={statusVariant(task.status)}>{statusLabel(task.status)}</Badge>
       </div>
       {task.description && (
         <p className="mt-2 text-xs text-muted-foreground line-clamp-3">{task.description}</p>
@@ -770,6 +794,120 @@ function KanbanCard({ task, onOpenTask }: { task: Task; onOpenTask: (task: Task)
       <p className="mt-2 text-xs text-muted-foreground">
         Entrega em {new Date(task.dueDate).toLocaleDateString()}
       </p>
+    </div>
+  );
+}
+
+type CreateTaskDialogProps = {
+  status: TaskStatus;
+  onClose: () => void;
+  onSubmit: (values: TaskFormValues) => Promise<void>;
+  saving: boolean;
+  errorMessage: string | null;
+};
+
+function CreateTaskDialog({
+  status,
+  onClose,
+  onSubmit,
+  saving,
+  errorMessage,
+}: CreateTaskDialogProps) {
+  const form = useForm<TaskFormValues>({
+    resolver: zodResolver(taskFormSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      status,
+      dueDate: formatDateForInput(new Date().toISOString()),
+    },
+  });
+
+  useEffect(() => {
+    form.reset({
+      title: '',
+      description: '',
+      status,
+      dueDate: formatDateForInput(new Date().toISOString()),
+    });
+  }, [status, form]);
+
+  const statusValue = form.watch('status') as TaskStatus;
+
+  const handleSubmit = form.handleSubmit(async (values) => {
+    await onSubmit(values);
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-lg overflow-hidden rounded-lg border bg-card shadow-xl">
+        <form onSubmit={handleSubmit} className="space-y-6 p-6">
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold text-card-foreground">Nova tarefa</h2>
+            <p className="text-xs text-muted-foreground">
+              Defina os detalhes e salve para adicionar ao quadro Kanban.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground" htmlFor="new-task-title">
+              Titulo
+            </label>
+            <Input id="new-task-title" {...form.register('title')} />
+            {form.formState.errors.title && (
+              <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground" htmlFor="new-task-description">
+              Descricao
+            </label>
+            <Textarea id="new-task-description" rows={4} {...form.register('description')} />
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Status</label>
+              <Select
+                value={statusValue}
+                onValueChange={(value: TaskStatus) => form.setValue('status', value)}
+              >
+                <SelectTrigger className={statusTextClass(statusValue)}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_COLUMNS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {renderStatusOptionContent(option.value)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground" htmlFor="new-task-due-date">
+                Data de entrega
+              </label>
+              <Input id="new-task-due-date" type="date" {...form.register('dueDate')} />
+              {form.formState.errors.dueDate && (
+                <p className="text-xs text-destructive">{form.formState.errors.dueDate.message}</p>
+              )}
+            </div>
+          </div>
+
+          {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
+
+          <div className="flex items-center justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Adicionando...' : 'Adicionar tarefa'}
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
