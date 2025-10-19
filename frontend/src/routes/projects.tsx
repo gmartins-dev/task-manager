@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
 import { api } from '../util/api';
 import { useAuthStore } from '../stores/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -21,6 +22,9 @@ export function ProjectsPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['projects'],
@@ -45,6 +49,19 @@ export function ProjectsPage() {
     },
     onError: (error: unknown) => {
       setFormError(error instanceof Error ? error.message : 'Nao foi possivel criar o projeto');
+    },
+  });
+
+  const deleteProject = useMutation({
+    mutationFn: async (projectId: string) =>
+      api(`/projects/${projectId}`, { method: 'DELETE', credentials: 'include' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      setProjectToDelete(null);
+      setDeleteError(null);
+    },
+    onError: () => {
+      setDeleteError('Nao foi possivel excluir o projeto. Tente novamente.');
     },
   });
 
@@ -95,28 +112,101 @@ export function ProjectsPage() {
         )}
         <div className="grid gap-4 md:grid-cols-2">
           {data?.map((project) => (
-            <Link
+            <Card
               key={project.id}
-              to={`/projects/${project.id}`}
-              className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-lg"
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(`/projects/${project.id}`)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  navigate(`/projects/${project.id}`);
+                }
+              }}
+              className="group transition hover:border-primary/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
-              <Card className="transition hover:border-primary/60 group-focus-visible:border-primary/60">
-                <CardHeader className="space-y-1">
-                  <CardTitle className="text-xl group-hover:text-primary">
-                    {project.name}
-                  </CardTitle>
-                  {project.description && (
-                    <CardDescription className="line-clamp-3">{project.description}</CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent className="text-xs text-muted-foreground">
-                  Criado em {new Date(project.createdAt).toLocaleDateString()}
-                </CardContent>
-              </Card>
-            </Link>
+              <CardHeader className="space-y-2">
+                <div className="flex items-start justify-between gap-4">
+                  <CardTitle className="text-xl group-hover:text-primary">{project.name}</CardTitle>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Excluir o projeto ${project.name}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setProjectToDelete(project);
+                      setDeleteError(null);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  </Button>
+                </div>
+                {project.description && (
+                  <CardDescription className="line-clamp-3">{project.description}</CardDescription>
+                )}
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                Criado em {new Date(project.createdAt).toLocaleDateString()}
+              </CardContent>
+            </Card>
           ))}
         </div>
       </section>
+
+      {projectToDelete && (
+        <DeleteProjectDialog
+          projectName={projectToDelete.name}
+          onCancel={() => {
+            setProjectToDelete(null);
+            setDeleteError(null);
+          }}
+          onConfirm={() => deleteProject.mutate(projectToDelete.id)}
+          pending={deleteProject.isPending}
+          errorMessage={deleteError}
+        />
+      )}
+    </div>
+  );
+}
+
+type DeleteProjectDialogProps = {
+  projectName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  pending: boolean;
+  errorMessage: string | null;
+};
+
+function DeleteProjectDialog({
+  projectName,
+  onCancel,
+  onConfirm,
+  pending,
+  errorMessage,
+}: DeleteProjectDialogProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-sm overflow-hidden rounded-lg border bg-card shadow-xl">
+        <div className="space-y-4 p-6">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold text-card-foreground">Excluir projeto</h2>
+            <p className="text-sm text-muted-foreground">
+              Essa acao remove permanentemente o projeto <span className="font-medium text-foreground">{projectName}</span>{' '}
+              e todas as suas tarefas.
+            </p>
+          </div>
+          {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
+          <div className="flex items-center justify-end gap-3">
+            <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
+              Cancelar
+            </Button>
+            <Button type="button" variant="destructive" onClick={onConfirm} disabled={pending}>
+              {pending ? 'Excluindo...' : 'Excluir projeto'}
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
