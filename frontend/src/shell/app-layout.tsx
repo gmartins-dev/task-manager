@@ -1,6 +1,7 @@
 import { Outlet, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import { Button } from '../components/ui/button';
+import { ThemeToggle } from '../components/theme-toggle';
 
 export function AppLayout() {
   const logout = useAuthStore((s) => s.logout);
@@ -13,6 +14,7 @@ export function AppLayout() {
             Gerenciador de Tarefas
           </Link>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <ThemeToggle />
             {user && <span className="hidden sm:inline">Ola, {user.name}</span>}
             <Button variant="outline" size="sm" onClick={logout}>
               Sair

@@ -4,6 +4,7 @@
 
 :root {
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
   --background: 217.5 26.7% 94.1%;
   --foreground: 220 16.4% 21.6%;
   --card: 217.5 26.7% 94.1%;
@@ -24,6 +25,7 @@
   --input: 220 16.4% 51.6%;
   --ring: 213.1 32% 52.2%;
   --radius: 0.5rem;
+
   --chart-1: 213.1 32% 52.2%;
   --chart-2: 218.2 26.8% 92%;
   --chart-3: 218.8 27.9% 88%;
@@ -60,8 +62,8 @@
   --border: 220 26.4% 48.4%;
   --input: 220 26.4% 48.4%;
   --ring: 213.1 42% 47.8%;
-  --radius: 0.5rem;
-  --chart-1: 213.1 42% 22.200000000000003%;
+
+  --chart-1: 213.1 42% 22.2%;
   --chart-2: 218.2 36.8% 60%;
   --chart-3: 218.8 37.9% 58%;
   --chart-4: 218.8 37.9% 60%;
@@ -77,10 +79,12 @@
   --sidebar-ring: 213 42% 40%;
 }
 
-body {
-  @apply bg-background text-foreground font-sans;
-}
+@layer base {
+  * {
+    @apply border-border;
+  }
 
-* {
-  @apply border-border;
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
 }
