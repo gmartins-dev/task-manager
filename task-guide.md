@@ -1,60 +1,89 @@
-# Aplicacao de Gerenciamento de Tarefas
+# 🧩 TASK MANAGEMENT APPLICATION DEVELOPMENT
 
-## Descricao do Projeto
+![📝](https://fonts.gstatic.com/s/e/notoemoji/16.0/1f4dd/32.png)
 
-Desenvolver uma aplicacao web fullstack para gerenciamento de tarefas, permitindo criar, visualizar, editar e excluir tarefas.
+## **Project Description**
 
-A aplicacao deve ser construida com **React** no frontend, **Node.js** no backend, **Prisma** como ORM e **MySQL** como banco de dados.
+Develop a **fullstack web application** for task management, allowing users to create, view, edit, and delete tasks.
 
----
-
-## Requisitos Funcionais
-
-1. **Autenticacao de usuarios**
-   - Implementar cadastro e login com autenticacao baseada em JWT.
-2. **Gestao de tarefas**
-   - Permitir criar, listar, atualizar e remover tarefas.
-   - Cada tarefa deve conter: titulo, descricao, status (pendente, em andamento, concluida) e data de entrega.
-3. **Listagem de tarefas**
-   - Exibir as tarefas do usuario com filtros por status e ordenacao por data de entrega.
-4. **Detalhes da tarefa**
-   - Exibir detalhes completos de uma tarefa especifica.
+The application must be built using **React** for the frontend, **Node.js** for the backend, **Prisma** as the ORM, and **MySQL** as the database.
 
 ---
 
-## Requisitos Nao Funcionais
+## **FUNCTIONAL REQUIREMENTS**
 
-- **Tecnologias obrigatorias:** React, Node.js, Prisma, MySQL.
-- **Boas praticas:** utilizar principios SOLID, manter codigo limpo e tipado com TypeScript, garantir design responsivo.
+### 1. USER AUTHENTICATION
+- Implement a user registration and login system with **JWT-based authentication**.
 
----
+### 2. TASK MANAGEMENT
+- Allow users to **create, view, edit, and delete** tasks.
+- Each task must include:
+  - **Title**
+  - **Description**
+  - **Status** (pending, in progress, completed)
+  - **Due date**
 
-## Documentacao
+### 3. TASK LISTING
+- Display the user's task list.
+- Allow **filtering by status** and **sorting by due date**.
 
-- Incluir um arquivo **README.md** com instrucoes de configuracao, execucao e estrutura do projeto.
-
----
-
-## Entrega
-
-- Publicar o codigo em um repositorio GitHub publico e informar o link de acesso.
-
----
-
-## Criterios de Avaliacao
-
-- Qualidade e organizacao do codigo
-- Atendimento aos requisitos funcionais e nao funcionais
-- Uso adequado das tecnologias exigidas
-- Clareza da documentacao
-- Experiencia responsiva (mobile, desktop e tablet)
+### 4. TASK DETAILS
+- Allow the user to view **complete details** of a specific task.
 
 ---
 
-## Opcional
+## **NON-FUNCTIONAL REQUIREMENTS**
 
-- Implementar testes automatizados
+![⚙️](https://fonts.gstatic.com/s/e/notoemoji/16.0/2699_fe0f/32.png)
+
+### **MANDATORY TECHNOLOGIES**
+- **Frontend:** React
+- **Backend:** Node.js
+- **ORM:** Prisma
+- **Database:** MySQL
+
+### **DEVELOPMENT BEST PRACTICES**
+- Apply **SOLID principles**
+- Use **TypeScript** throughout the project
+- Maintain **clean and well-documented code**
+- Ensure **responsive design** on the frontend
 
 ---
 
-## Prazo de Entrega: 13/10/2025
+## **DOCUMENTATION**
+
+![📄](https://fonts.gstatic.com/s/e/notoemoji/16.0/1f4c4/32.png)
+
+- Include a **README.md** file with clear instructions on how to configure and run the application, along with details about the project structure.
+
+---
+
+## **DELIVERY**
+
+![🚀](https://fonts.gstatic.com/s/e/notoemoji/16.0/1f680/32.png)
+
+- Publish the code in a **public GitHub repository** and provide the access link.
+
+---
+
+## **EVALUATION CRITERIA**
+
+![📊](https://fonts.gstatic.com/s/e/notoemoji/16.0/1f4ca/32.png)
+
+- Code quality and organization
+- Adherence to functional and non-functional requirements
+- Proper use of the required technologies
+- Clarity and completeness of documentation
+- Responsiveness across mobile, desktop, and iPad
+
+---
+
+## **OPTIONAL**
+
+![🧪](https://fonts.gstatic.com/s/e/notoemoji/16.0/1f9ea/32.png)
+
+- Implement **automated tests**
+
+---
+
+## **DELIVERY DEADLINE: 13/10/2025**
