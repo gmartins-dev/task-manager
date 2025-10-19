@@ -50,9 +50,9 @@ Adapt these rules if the actual layout differs, but keep the same intent and str
 - Backend: Jest + Supertest. Favor fast unit tests + a few integration tests. Consider a separate test DB/schema.
 
 ## Agent Guardrails
-
+- Keep all user-facing copy (labels, placeholders, toasts, HTTP/API messages, etc.) in Brazilian Portuguese unless explicitly instructed otherwise.
 - Do not change environment management or secrets without explicit instruction.
-- Keep changes scoped; avoid cross‑cutting refactors unless requested.
+- Keep changes scoped; avoid cross-cutting refactors unless requested.
 - Update or add tests for modified logic. Do not lower coverage without reason.
 - Prefer creating/using feature folders over monolithic modules.
 - If conventions differ from this file, update the nearest `AGENTS.md` and call it out in PR notes.
@@ -64,3 +64,5 @@ Adapt these rules if the actual layout differs, but keep the same intent and str
 - Prisma: `pnpm --filter backend prisma migrate dev && prisma generate`
 
 Refer to `frontend/AGENTS.md` and `backend/AGENTS.md` for scoped details.
+
+
