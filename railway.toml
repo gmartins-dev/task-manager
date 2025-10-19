@@ -1,0 +1,11 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm install -g pnpm && pnpm install && pnpm build"
+
+[deploy]
+startCommand = "pnpm start"
+healthcheckPath = "/health"
+restartPolicyType = "ON_FAILURE"
+
+[service]
+autoDeploy = true
