@@ -1,9 +1,6 @@
 [build]
-builder = "nixpacks"
-buildCommand = "npm i -g pnpm && cd backend && pnpm install --no-frozen-lockfile && pnpm exec prisma generate && pnpm run build"
+install = "npm i -g pnpm && pnpm i --frozen-lockfile"
+command = "pnpm --filter backend exec prisma generate && pnpm --filter backend build"
 
-[deploy]
-startCommand = "cd backend && pnpm exec prisma migrate deploy && pnpm start"
-restartPolicyType = "ON_FAILURE"
-healthcheckPath = "/health"
-healthcheckTimeout = 100
+[start]
+command = "pnpm --filter backend exec prisma migrate deploy && pnpm --filter backend start"
