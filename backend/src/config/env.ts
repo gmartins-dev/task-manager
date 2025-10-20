@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 const EnvSchema = z.object({
-  DATABASE_URL: z.string().url(),
+  // Accept any non-empty string for DATABASE_URL to support mysql URLs
+  DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
