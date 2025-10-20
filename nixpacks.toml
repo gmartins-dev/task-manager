@@ -1,0 +1,16 @@
+[phases.setup]
+nixPkgs = ['nodejs', 'nodePackages.pnpm']
+
+[phases.install]
+cmds = ['pnpm install --no-frozen-lockfile']
+
+[phases.build]
+cmds = [
+  'cd backend',
+  'pnpm install --no-frozen-lockfile',
+  'pnpm exec prisma generate',
+  'pnpm run build'
+]
+
+[start]
+cmd = 'cd backend && pnpm exec prisma migrate deploy && pnpm start'

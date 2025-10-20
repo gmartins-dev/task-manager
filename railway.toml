@@ -1,6 +1,8 @@
 [build]
-install = "npm i -g pnpm"
-command = "pnpm install && cd backend && pnpm install && pnpm exec prisma generate && pnpm run build"
+builder = "nixpacks"
+nixpacksConfigPath = "nixpacks.toml"
 
-[start]
-command = "cd backend && pnpm exec prisma migrate deploy && pnpm start"
+[deploy]
+restartPolicyType = "ON_FAILURE"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
