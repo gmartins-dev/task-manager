@@ -1,9 +1,9 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm install -g pnpm && pnpm install && pnpm build"
+nixpacksConfigPath = "nixpacks.toml"
 
 [deploy]
-startCommand = "pnpm start"
+startCommand = "cd backend && node dist/index.js"
 healthcheckPath = "/health"
 restartPolicyType = "ON_FAILURE"
 
