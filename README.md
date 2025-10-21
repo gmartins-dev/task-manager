@@ -1,63 +1,70 @@
 Gerenciador de Tarefas Monorepo
 ===============================
 
-Aplicação moderna de gerenciamento de tarefas construída com React, Node.js, Prisma e MySQL.  
-Usuários autenticam via JWT, organizam projetos e administram tarefas em tabela ou kanban com drag-and-drop.
+Aplicacao moderna de gerenciamento de tarefas construida como monorepo (frontend + backend). Os usuarios autenticam via JWT, organizam projetos e administram tarefas em tabela ou kanban com drag-and-drop otimizado.
 
-Conteúdo
+Conteudo
 --------
-- [Recursos](#recursos)
-- [Stack Tecnológico](#stack-tecnológico)
+- [Visao Geral](#visao-geral)
+- [Recursos Principais](#recursos-principais)
+- [Stack Tecnologico](#stack-tecnologico)
 - [Primeiros Passos](#primeiros-passos)
-- [Scripts Disponíveis](#scripts-disponíveis)
+- [Scripts Disponiveis](#scripts-disponiveis)
 - [Estrutura do Projeto](#estrutura-do-projeto)
-- [Visão Geral da API](#visão-geral-da-api)
+- [API](#api)
+- [Deploy em Producao (Railway + Vercel)](#deploy-em-producao-railway--vercel)
 - [Testes](#testes)
-- [Limitações e Próximos Passos](#limitações-e-próximos-passos)
+- [Limitacoes e Proximos Passos](#limitacoes-e-proximos-passos)
 
-Recursos
---------
-- **Autenticação**
+Visao Geral
+-----------
+- Frontend React hospedado na Vercel: https://task-manager-frontend-three-woad.vercel.app
+- Backend Express + Prisma hospedado na Railway: https://backend-production-84dd.up.railway.app
+- Banco de dados MySQL via Railway.
+
+Recursos Principais
+-------------------
+- **Autenticacao**
   - Registro e login com JWT (access token + refresh httpOnly).
-  - Atualização automática de token e logout.
+  - Refresh automatico quando expira o access token.
+  - Logout limpa o cookie de refresh.
 - **Projetos**
-  - Criação e listagem de projetos pessoais.
+  - CRUD de projetos pessoais e listagem paginada via cards.
 - **Tarefas**
-  - CRUD completo (criar, visualizar, editar, excluir).
-  - Campos obrigatórios: título, descrição, status (pendente / em andamento / concluída) e data de entrega.
-  - Kanban com arrastar e soltar para mover tarefas entre status.
-  - Visualização em tabela com navegação rápida, suporte a teclado, filtro por status e ordenação por data.
-  - Modal de detalhes para editar ou remover tarefas.
-- **UX aprimorada**
-  - Tema claro/escuro com preferência do usuário (detecção automática + persistência).
+  - CRUD completo com titulo, descricao, status (PENDING, IN_PROGRESS, COMPLETED) e data de entrega.
+  - Kanban com arrastar e soltar; mover a tarefa muda o status com atualizacao otimista.
+  - Tabela com filtro por status, ordenacao por data e suporte a teclado.
+  - Dialogs para criacao, edicao e remocao.
+- **UX**
+  - Tema claro/escuro com preferencia do usuario e persistencia local.
   - Layout responsivo (desktop, tablet, mobile).
-  - Atualizações otimizadas ao mover cartões no kanban.
+  - Mensagens em portugues do Brasil conforme guardrails.
 
-Stack Tecnológico
+Stack Tecnologico
 -----------------
-- **Frontend**: React 18, Vite, TypeScript, Tailwind CSS 3, shadcn/ui, Zustand, TanStack Query, React Hook Form + Zod, @dnd-kit.
-- **Backend**: Node 18, Express, TypeScript, Prisma ORM, MySQL, validação com Zod, JWT (access + refresh).
-- **Ferramentas**: pnpm workspaces, Vitest + Testing Library (frontend), Jest + Supertest (backend), Docker Compose para MySQL.
+- **Frontend**: React 18, Vite, TypeScript, Tailwind CSS 3, shadcn/ui, TanStack Query, Zustand, React Hook Form + Zod, @dnd-kit.
+- **Backend**: Node 20, Express, TypeScript, Prisma ORM, MySQL 8, validacao com Zod, JWT (access + refresh).
+- **Ferramentas**: pnpm workspaces (pnpm 10), Vitest + Testing Library (frontend), Jest + Supertest (backend), Docker Compose para MySQL local, Railway (backend + DB) e Vercel (frontend).
 
 Primeiros Passos
 ----------------
-### Pré-requisitos
-- Node.js 18+
-- pnpm 8+
-- Docker (para o MySQL local)
+### Pre-requisitos
+- Node.js 20.x (via `engines`).
+- pnpm 10.x (`corepack enable pnpm` e `corepack use pnpm@10` se necessario).
+- Docker (opcional, usado para o MySQL local).
 
-### 1. Instale as dependências
+### 1. Instalar dependencias
 ```bash
 pnpm -r install
 ```
 
-### 2. Suba o banco de dados
+### 2. Subir banco de dados local (opcional)
 ```bash
 docker compose up -d
 ```
 
-### 3. Configure as variáveis de ambiente
-- `backend/.env`
+### 3. Configurar variaveis de ambiente
+- `backend/.env` (exemplo para desenvolvimento local)
   ```
   DATABASE_URL="mysql://app:app@localhost:3306/task_manager"
   SHADOW_DATABASE_URL="mysql://root:root@localhost:3306/task_manager_shadow"
@@ -71,8 +78,9 @@ docker compose up -d
   ```
   VITE_API_URL=http://localhost:4000
   ```
+- Para testar o frontend local contra o backend em producao, edite `frontend/.env.development` para `https://backend-production-84dd.up.railway.app`.
 
-### 4. Rodar migrações e gerar o client Prisma
+### 4. Rodar migracoes e gerar Prisma Client
 ```bash
 pnpm --filter backend prisma migrate dev
 pnpm --filter backend prisma generate
@@ -82,22 +90,23 @@ pnpm --filter backend prisma generate
 ```bash
 pnpm dev
 ```
-- Backend: http://localhost:4000  
+- Backend: http://localhost:4000
 - Frontend: http://localhost:5173
+- Para desligar o banco: `pnpm run dev:down`.
 
-Para desligar o banco: `pnpm run dev:down`.
-
-Scripts Disponíveis
+Scripts Disponiveis
 -------------------
 Executados a partir da raiz do monorepo:
 
-| Comando | Descrição |
+| Comando | Descricao |
 | --- | --- |
-| `pnpm dev` | Sobe MySQL + backend (ts-node-dev) + frontend (Vite) |
+| `pnpm dev` | Sobe MySQL (Docker), backend (`ts-node-dev`) e frontend (Vite) |
 | `pnpm run dev:db` / `pnpm run dev:down` | Inicia ou encerra apenas o MySQL |
-| `pnpm --filter backend dev` | Executa o servidor backend |
-| `pnpm --filter frontend dev` | Executa o servidor frontend |
-| `pnpm --filter backend build` / `pnpm --filter frontend build` | Build de produção |
+| `pnpm --filter backend dev` | Executa o backend em modo desenvolvimento |
+| `pnpm --filter frontend dev` | Executa o frontend |
+| `pnpm --filter backend build` | Compila o backend (tsc) |
+| `pnpm --filter frontend build` | Compila o frontend (tsc + vite build) |
+| `pnpm --filter backend prisma migrate deploy` | Aplica migracoes em producao |
 | `pnpm --filter backend test` | Testes backend (Jest + Supertest) |
 | `pnpm --filter frontend test -- --run` | Testes frontend (Vitest + RTL) |
 
@@ -105,55 +114,64 @@ Estrutura do Projeto
 --------------------
 ```
 task-manager/
-├── backend/
-│   ├── src/
-│   │   ├── app.ts              # Wires Express app
-│   │   ├── index.ts            # Bootstrap do servidor
-│   │   ├── config/             # Env schema + Prisma client
-│   │   ├── modules/            # Módulos de domínio (auth, projetos, tasks)
-│   │   └── middlewares/        # validate, authenticate, error handler
-│   └── prisma/schema.prisma
-├── frontend/
-│   ├── src/
-│   │   ├── main.tsx            # Bootstrap React + providers
-│   │   ├── router.tsx          # Rotas privadas/públicas
-│   │   ├── shell/              # Layout principal
-│   │   ├── components/         # UI shadcn + ThemeToggle
-│   │   ├── routes/             # Páginas (login, register, projects, project)
-│   │   └── stores/             # Zustand auth store
-│   └── index.css               # Tailwind base + tokens de tema
-├── docker-compose.yml
-├── README.md
-└── pnpm-workspace.yaml
+├─ backend/
+│  ├─ src/
+│  │  ├─ app.ts             # Express app (CORS, rotas, middlewares)
+│  │  ├─ index.ts           # Bootstrap do servidor
+│  │  ├─ config/            # Env schema, Prisma client
+│  │  ├─ modules/           # Auth, projects, tasks
+│  │  └─ middlewares/       # validate, authenticate, error handler
+│  └─ prisma/schema.prisma
+├─ frontend/
+│  ├─ src/
+│  │  ├─ main.tsx           # Monta React + providers
+│  │  ├─ router.tsx         # Rotas publicas/privadas
+│  │  ├─ shell/             # Layout principal
+│  │  ├─ components/        # UI shadcn, ThemeToggle etc.
+│  │  ├─ routes/            # Paginas (login, register, projects, project)
+│  │  ├─ features/          # Dominios (projects list, project board)
+│  │  └─ stores/            # Zustand auth store
+│  └─ index.css             # Tailwind base + tokens
+├─ docker-compose.yml
+├─ README.md
+└─ pnpm-workspace.yaml
 ```
 
-Visão Geral da API
-------------------
-Base URL: `http://localhost:4000`
+API
+---
+Base local: `http://localhost:4000`
+Base producao: `https://backend-production-84dd.up.railway.app`
 
-- `POST /auth/register` / `POST /auth/login` → `{ user, accessToken }` + refresh cookie.
-- `POST /auth/refresh` → emite novo access token / refresh cookie.
-- `POST /auth/logout` → limpa cookie.
-- `GET /projects` → lista projetos do usuário.
-- `POST /projects` → cria projeto.
-- `GET /projects/:id` → detalhes do projeto com tarefas.
+- `POST /auth/register` / `POST /auth/login` -> `{ user, accessToken }` + cookie refresh.
+- `POST /auth/refresh` -> novo access token (requer cookie httpOnly).
+- `POST /auth/logout` -> remove cookie.
+- `GET /projects` -> lista projetos do usuario logado.
+- `POST /projects` -> cria projeto.
+- `GET /projects/:id` -> detalhes com tarefas.
 - `PATCH /projects/:id` / `DELETE /projects/:id`.
-- `GET /projects/:projectId/tasks` → suporta `?status=` e `sort=dueDateAsc|dueDateDesc`.
+- `GET /projects/:projectId/tasks` -> aceita `?status=` e `sort=dueDateAsc|dueDateDesc`.
 - `POST /projects/:projectId/tasks`.
-- `PATCH /projects/tasks/:id` → atualiza título, descrição, status, due date.
+- `PATCH /projects/tasks/:id` -> atualiza titulo, descricao, status, due date.
 - `DELETE /projects/tasks/:id`.
+- `GET /health` -> health check.
 
-Todas as rotas (exceto auth) exigem `Authorization: Bearer <accessToken>` e o cookie de refresh enviado pelo backend.
+Todas as rotas autenticadas exigem header `Authorization: Bearer <accessToken>` e o cookie de refresh para manter a sessao.
+
+Deploy em Producao (Railway + Vercel)
+-------------------------------------
+- **Backend (Railway)**
+  - Variaveis obrigatorias: `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `NODE_ENV=production`, `PORT=8080`, `CORS_ORIGIN="https://task-manager-frontend-three-woad.vercel.app, http://localhost:5173"`.
+  - `railway.toml` compila (`pnpm build`) e executa migracoes (`pnpm prisma migrate deploy`) antes de iniciar.
+- **Frontend (Vercel)**
+  - Root Directory: `frontend`.
+  - Node version: `20.x`.
+  - Build command: `pnpm build` (Install command `pnpm install --no-frozen-lockfile`).
+  - Variaveis: `VITE_API_URL=https://backend-production-84dd.up.railway.app`.
+  - Recomenda-se redeploy com cache limpo apos alterar envs.
+- **Teste local contra producao**: atualize `frontend/.env.development` com a URL do backend na Railway.
 
 Testes
 ------
 - Backend: `pnpm --filter backend test`.
-- Frontend: `pnpm --filter frontend test -- --run` (cobre autenticação; testar views de projeto/tarefa é próximo passo).
-
-Limitações e Próximos Passos
-----------------------------
-- Ampliar cobertura de testes frontend (kanban/tabela).
-- Implementar ordenação persistente dentro das colunas do kanban.
-- Paginação ou carregamento incremental para listas extensas.
-- Adicionar rate limiting / logging no backend.
-- Ajustes de acessibilidade (ARIA para drag handles, etc.).
+- Frontend: `pnpm --filter frontend test -- --run`.
+- Proximo passo: adicionar testes E2E ou de interacao para drag-and-drop e tabela.
