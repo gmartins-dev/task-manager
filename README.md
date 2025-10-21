@@ -14,7 +14,6 @@ Conteudo
 - [API](#api)
 - [Deploy em Producao (Railway + Vercel)](#deploy-em-producao-railway--vercel)
 - [Testes](#testes)
-- [Limitacoes e Proximos Passos](#limitacoes-e-proximos-passos)
 
 Visao Geral
 -----------
