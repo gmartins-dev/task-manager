@@ -1,4 +1,4 @@
-import { DndContext, closestCorners, type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCorners, type DragEndEvent, useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Pencil, Plus } from 'lucide-react';
@@ -58,8 +58,19 @@ interface KanbanColumnProps {
 }
 
 function KanbanColumn({ status, label, tasks, onOpenTask, onCreateTask }: KanbanColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: status,
+    data: { column: status },
+  });
+
   return (
-    <div className="flex h-full flex-col rounded-lg border bg-muted/30">
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'flex h-full flex-col rounded-lg border bg-muted/30 transition-colors',
+        isOver ? 'border-primary/60 bg-primary/5' : null,
+      )}
+    >
       <div className="flex items-center justify-between border-b px-4 py-3 text-sm font-medium">
         <span className={cn('flex items-center gap-2', statusTextClass(status))}>
           <span className={cn('h-2 w-2 rounded-full', statusDotClass(status))} />
