@@ -9,7 +9,10 @@ type ApiOptions = {
 };
 
 export async function api(path: string, options: ApiOptions = {}) {
-  const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+  const baseURL = import.meta.env.VITE_API_URL;
+  if (!baseURL) {
+    throw new Error('VITE_API_URL ausente no ambiente. Configure nas envs da Vercel.');
+  }
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
